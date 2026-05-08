@@ -1,0 +1,29 @@
+# Per-project service profile.
+#   robot-tools list                       # see all registered servers
+#   robot-tools sync   services.yaml       # install only what's listed below
+#   robot-tools setup  <name>              # one-time manual install (per server)
+#   robot-tools download <name>            # one-time weight fetch (per server)
+#   robot-tools launch services.yaml       # start them (auto-sync if missing)
+#
+# Defaults below use --mock so you can verify the wiring before any heavy
+# install. Drop the --mock flag once setup + download are done for that server.
+
+services:
+  - name: graspgen
+    port: 5557
+    host: 127.0.0.1
+    # gpu: 0                                 # CUDA_VISIBLE_DEVICES (omit for default GPU)
+    # Real: ["--gripper", "franka_panda"]    (or robotiq_2f_85/140, single_suction_cup_30mm)
+    extra_args: ["--mock"]
+
+  - name: fastfs
+    port: 5556
+    host: 127.0.0.1
+    # Real: ["--model", "23-36-37"]          (or 20-30-48 / 20-26-39 / 15-44-51 — smaller=faster)
+    extra_args: ["--mock"]
+
+  - name: sam3
+    port: 5558
+    host: 127.0.0.1
+    # Real: []   (no extra args needed; needs `hf auth login` + access granted)
+    extra_args: ["--mock"]

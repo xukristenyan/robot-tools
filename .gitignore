@@ -1,0 +1,45 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments (root SDK + per-server)
+.venv
+servers/*/.venv
+
+# Model weights / caches (never commit)
+checkpoints/
+weights/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets
+.env
+.env.local
+
+# Logs
+logs/
+*.log
+
+# Local service profile (the user's own copy of services.example.yaml).
+# Leading slash anchors at repo root so examples/services.yaml stays tracked.
+/services.yaml

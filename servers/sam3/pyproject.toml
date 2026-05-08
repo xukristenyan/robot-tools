@@ -1,0 +1,24 @@
+[project]
+name = "sam3-server"
+version = "0.1.0"
+description = "SAM 3 ZMQ server (mock by default; live model installed manually)."
+readme = "README.md"
+# SAM3 supports >=3.8, we pin 3.12 to share managed Python with fastfs.
+requires-python = ">=3.12,<3.13"
+
+dependencies = [
+    "robot-tools",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.10.12,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = false
+# Use uv-managed Python (system Python often lacks dev headers; Triton/torch
+# JIT compiles need them). See NOTES.md "System Python lacks dev headers".
+python-preference = "only-managed"

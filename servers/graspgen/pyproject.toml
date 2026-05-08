@@ -1,0 +1,28 @@
+[project]
+name = "graspgen-server"
+version = "0.1.0"
+description = "GraspGen ZMQ server (mock by default; live model installed manually)."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+
+# Enough to run `python server.py --mock`. Real-model deps (torch, grasp_gen,
+# pointnet2_ops) are installed manually per INSTALL.md — they need a CUDA
+# environment uv can't bootstrap.
+dependencies = [
+    "robot-tools",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.10.12,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = false
+# torch 2.1.0 was compiled against numpy 1.x. Pin to keep the venv consistent
+# even though robot-tools' deps allow numpy>=1.26.
+override-dependencies = [
+    "numpy==1.26.4",
+]

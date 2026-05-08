@@ -1,0 +1,27 @@
+[project]
+name = "robot-tools"
+version = "0.1.0"
+description = "Shared client SDK + server launcher for vision/manipulation models (FoundationStereo, SAM, GraspGen, ...)."
+readme = "README.md"
+authors = [
+    { name = "xukristenyan", email = "xkyan3@gmail.com" }
+]
+requires-python = ">=3.10"
+
+# Light client-side deps. Heavy model deps live in each `servers/<name>/` subproject.
+dependencies = [
+    "numpy>=1.26",
+    "pyzmq>=25",
+    "msgpack>=1.0",
+    "msgpack-numpy>=0.4.8",
+    "pyyaml>=6.0",
+    "pydantic>=2",
+    "typing-extensions>=4",
+]
+
+[project.scripts]
+robot-tools = "robot_tools.launcher:main"
+
+[build-system]
+requires = ["uv_build>=0.10.12,<0.11.0"]
+build-backend = "uv_build"

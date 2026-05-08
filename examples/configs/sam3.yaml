@@ -1,0 +1,4 @@
+score_threshold: 0.3        # filter weak text-prompt detections
+
+# segment_by_point: return up to 3 candidate masks (small/med/large) when true.
+multimask_output: true

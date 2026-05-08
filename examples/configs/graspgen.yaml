@@ -1,0 +1,7 @@
+grasp_threshold: 0.8
+num_grasps: 200
+topk: 10
+
+# Collision-free knobs (only used by generate_collision_free_grasps)
+collision_threshold: 0.02   # meters; min clearance to scene points
+max_scene_points: 8192      # downsample cap for scene PC

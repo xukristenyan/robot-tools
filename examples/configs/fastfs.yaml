@@ -1,0 +1,13 @@
+# Camera intrinsics — required to convert fastfs's pixel disparity to metric
+# depth (disparity_to_depth) and to backproject depth → point cloud in the
+# pipeline example. Replace with values for your stereo rig.
+camera:
+  fx: 700.0
+  fy: 700.0
+  cx: 640.0
+  cy: 360.0
+  baseline: 0.075   # meters
+
+# Per-call refinement overrides; null = use the server's startup default.
+valid_iters: null
+max_disp: null

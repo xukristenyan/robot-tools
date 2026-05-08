@@ -1,0 +1,9 @@
+[submodule "servers/graspgen/upstream"]
+	path = servers/graspgen/upstream
+	url = https://github.com/NVlabs/GraspGen.git
+[submodule "servers/fastfs/upstream"]
+	path = servers/fastfs/upstream
+	url = https://github.com/NVlabs/Fast-FoundationStereo.git
+[submodule "servers/sam3/upstream"]
+	path = servers/sam3/upstream
+	url = https://github.com/facebookresearch/sam3.git
