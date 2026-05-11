@@ -1,11 +1,6 @@
-"""High-level GraspGen inference wrapper, headless.
+"""GraspGen inference wrapper, headless. Visualization is intentionally client-side only.
 
-Models directory resolution order:
-  1. $GRASPGEN_MODELS_DIR (explicit override)
-  2. <this server dir>/GraspGenModels  (default, populated by download.sh)
-
-Visualization helpers (viser) are intentionally NOT included here — server-side
-rendering is the wrong layer. Visualize on the client if needed.
+GRASPGEN_MODELS_DIR overrides the default GraspGenModels/ directory.
 """
 
 from __future__ import annotations
@@ -16,6 +11,12 @@ from pathlib import Path
 import numpy as np
 
 _DEFAULT_MODELS_DIR = Path(__file__).resolve().parent / "GraspGenModels"
+
+# Grippers with no native checkpoint -> source model to load and retarget from.
+# Strokes: franka ~105mm, 2f_85 = 85mm, 2f_140 = 136mm.
+_RETARGET_SOURCE = {
+    "robotiq_2f_85": "franka_panda",
+}
 
 
 def _models_dir() -> Path:
@@ -56,16 +57,35 @@ class GraspPipeline:
         num_grasps: int = 200,
         topk_num_grasps: int = -1,
     ):
-        # Imports are deferred so this module is importable without the heavy
-        # GraspGen deps installed (useful for type-checking / tests).
         from grasp_gen.grasp_server import GraspGenSampler, load_grasp_cfg
-        from grasp_gen.robot import get_gripper_info
+        from grasp_gen.robot import get_gripper_depth, get_gripper_info
 
-        config_path = _resolve_gripper_config(gripper_config)
+        # Custom yml paths bypass retargeting.
+        input_path = Path(gripper_config)
+        if input_path.is_file():
+            target_name = input_path.stem.removeprefix("graspgen_")
+            source_name = target_name
+            config_path = str(input_path)
+        else:
+            target_name = gripper_config
+            source_name = _RETARGET_SOURCE.get(target_name, target_name)
+            config_path = _resolve_gripper_config(source_name)
+
         self.cfg = load_grasp_cfg(config_path)
         self.sampler = GraspGenSampler(self.cfg)
-        self.gripper_name = self.cfg.data.gripper_name
-        self.gripper_info = get_gripper_info(self.gripper_name)
+
+        # Both refer to TARGET, not the source model whose weights we loaded.
+        self.gripper_name = target_name
+        self.gripper_info = get_gripper_info(target_name)
+
+        # Z-offset retargeting
+        if source_name != target_name:
+            self._z_offset = (
+                float(get_gripper_depth(source_name))
+                - float(get_gripper_depth(target_name))
+            )
+        else:
+            self._z_offset = 0.0
 
         self.grasp_threshold = grasp_threshold
         self.num_grasps = num_grasps
@@ -88,6 +108,12 @@ class GraspPipeline:
         grasps = grasps.cpu().numpy()
         conf = conf.cpu().numpy()
         grasps[:, 3, 3] = 1
+
+        if self._z_offset != 0.0:
+            T_off = np.eye(4, dtype=grasps.dtype)
+            T_off[2, 3] = self._z_offset
+            grasps = grasps @ T_off
+
         return {"poses": grasps, "confidences": conf}
 
     def generate_collision_free_grasps(

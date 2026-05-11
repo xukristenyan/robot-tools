@@ -10,7 +10,8 @@ servers/graspgen/
 ├── server.py              BaseServer subclass; @handler-decorated methods
 ├── pipeline.py            headless wrapper around GraspGenSampler
 ├── upstream/              git submodule of NVlabs/GraspGen
-├── setup.sh               manual install steps (uv pip install -e ./upstream + pointnet)
+├── patches/               files overlaid into upstream/ during setup (e.g. 2f_85 support)
+├── setup.sh               applies patches/ + uv pip install -e ./upstream + pointnet
 ├── download.sh            fetch checkpoints from HuggingFace (~9.3 GB)
 ├── INSTALL.md             R2D2-specific CUDA hack (fallback for weird setups)
 └── GraspGenModels/        gitignored; created by download.sh

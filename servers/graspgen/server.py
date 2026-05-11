@@ -106,7 +106,8 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5557)
     parser.add_argument("--gripper", default="franka_panda",
-                        help="Gripper name (franka_panda, robotiq_2f_85/140, single_suction_cup_30mm)")
+                        help="Gripper name (franka_panda, robotiq_2f_85, robotiq_2f_140, "
+                             "single_suction_cup_30mm).")
     parser.add_argument("--mock", action="store_true",
                         help="Skip real model loading; return fake grasps. "
                              "Useful before GraspGen is installed.")

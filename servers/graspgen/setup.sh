@@ -19,9 +19,18 @@ fi
 export VIRTUAL_ENV="$VENV_DIR"
 export PATH="$VENV_DIR/bin:$PATH"
 
+# Apply robot-tools patches into the upstream submodule. patches/ mirrors
+# upstream/ structure; cp -r overlays our additions/overrides without
+# touching anything else. Currently this enables --gripper robotiq_2f_85
+# (upstream lacks the .py + complete .yaml + collision .obj for that target).
+echo "[graspgen setup 1/3] Applying robot-tools patches into upstream/..."
+if [[ -d "$HERE/patches" ]]; then
+    cp -r "$HERE/patches/." "$HERE/upstream/"
+fi
+
 # Run from upstream/ so uv reads upstream's [tool.uv] (find-links for PyG
 # wheels + prerelease allow). VIRTUAL_ENV still pins the install target.
-echo "[graspgen setup 1/2] Installing GraspGen package (editable)..."
+echo "[graspgen setup 2/3] Installing GraspGen package (editable)..."
 ( cd "$HERE/upstream" && uv pip install -e . )
 
 # GraspGen pins numpy==1.26.4 (torch 2.1.0 was compiled against numpy 1.x).
@@ -29,7 +38,7 @@ echo "[graspgen setup 1/2] Installing GraspGen package (editable)..."
 # installed by the prior `uv sync` and won't get auto-downgraded above.
 uv pip install --reinstall-package numpy 'numpy==1.26.4'
 
-echo "[graspgen setup 2/2] Compiling pointnet2_ops..."
+echo "[graspgen setup 3/3] Compiling pointnet2_ops..."
 ( cd "$HERE/upstream" && bash install_uv_pointnet.sh )
 
 echo
