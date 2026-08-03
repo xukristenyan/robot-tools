@@ -1,0 +1,459 @@
+<section class="module" id="module-3" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">一次调用，到底经过了什么？</h1>
+      <p class="module-subtitle">跟着一对图像，从你的代码一路走到 GPU，再带着视差结果回来。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">先把它想成一件挂号包裹</h2>
+        <p>
+          你只写下 <code>client.reconstruct(left, right)</code>，一对图像却要通过
+          <span class="term" data-definition="FastFS 是这个项目中的双目图像重建服务：它比较左右两张图，计算每个位置的视差。">FastFS</span>
+          <span class="term" data-definition="调用是让一段程序开始做事，例如执行 client.reconstruct。可以把它理解成按下一个有明确任务的按钮。">调用</span>，
+          跑到 <span class="term" data-definition="GPU 是擅长同时做大量数字计算的处理器，图像和 AI 模型常用它来加速。">GPU</span>，再变回
+          <span class="term" data-definition="NumPy 数组是 Python 中装数字的多维表格；图像通常是高 × 宽 × 颜色通道的数字表格。">NumPy 数组</span>。
+        </p>
+
+        <div class="flow-steps stagger-children" aria-label="挂号包裹与真实代码的对应关系">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">寄</div>
+            <p><strong><span class="term" data-definition="客户端是发起请求的一端。在这里，FastFSClient 先整理图像，再把请求交给网络层。">client</span></strong><br>检查并整理两张图</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">证</div>
+            <p><strong><span class="term" data-definition="contract 是客户端和服务端共同遵守的数据约定，写清楚请求与响应必须有哪些字段和类型。">contract</span></strong><br>像双方共认的包裹清单</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">封</div>
+            <p><strong><span class="term" data-definition="序列化是把程序里的对象变成适合存储或传输的字节；反序列化则把字节还原成对象。">serialization</span></strong><br>用 <span class="term" data-definition="MessagePack 是一种紧凑的二进制数据格式，作用类似 JSON，但传输时通常更省空间。">MessagePack</span> 封装</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">送</div>
+            <p><strong><span class="term" data-definition="HTTP 是客户端与服务端在网络上收发请求和响应的一套规则。">HTTP</span> <span class="term" data-definition="route 是服务端接收某类请求的地址和规则，像分拣中心里写着目的地的窗口。">route</span></strong><br>送到正确窗口</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">办</div>
+            <p><strong><span class="term" data-definition="handler 是收到特定请求后真正处理它的函数。route 负责接件，handler 负责办事。">server handler</span></strong><br>交给 <span class="term" data-definition="backend 是真正执行核心计算的后端层；在 FastFS 中，它负责运行视差推理。">backend</span> 计算</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">回</div>
+            <p><strong>typed response</strong><br>按同一份 contract 验收回执</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div>
+            <strong>Aha：contract 是双方共用的“兼容护照”</strong>
+            <p>
+              它的 <span class="term" data-definition="schema 是数据的结构说明书，规定字段名称、类型和必要条件。它让两端可以自动检查包裹是否合规。">schema</span>
+              同时约束请求和响应；任意一端偷偷换格式，护照检查就会暴露问题。
+            </p>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in" aria-label="HTTP 状态与排错方向">
+          <div class="badge-item">
+            <code class="badge-code">200</code>
+            <span class="badge-desc"><strong>已签收：</strong>请求处理成功，可以继续检查结果内容。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">422</code>
+            <span class="badge-desc"><strong>清单不合格：</strong>请求没通过 schema 检查，通常还没进入 handler。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">500</code>
+            <span class="badge-desc">
+              <strong>办理中出错：</strong>服务端内部失败，查看 handler 或 backend 日志。这里的数字叫
+              <span class="term" data-definition="状态码是 HTTP 响应里的三位数字，用来快速说明请求成功、输入有问题，还是服务端出错。">status code</span>。
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">让七个组件自己讲完这趟旅程</h2>
+        <p>点击“下一条”，看每个角色只做自己那一小段；没有谁单独完成整次重建。</p>
+
+        <div class="chat-window" id="chat-module-3-request-journey" aria-label="FastFS 请求旅程群聊">
+          <div class="chat-messages">
+            <div class="chat-message" data-msg="0" data-sender="user-code" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">U</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">User Code</span>
+                <p>FastFSClient，我给你 left 和 right，请帮我 reconstruct。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="1" data-sender="fastfs-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">FC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">FastFSClient</span>
+                <p>先交给 <code>_as_hwc3_u8</code>：我要确认两张图是 <span class="term" data-definition="HWC 是图像数组的排列方式：高度 Height、宽度 Width、颜色通道 Channel。HWC3 表示最后一维有 3 个颜色通道。">HWC3</span> 的 <span class="term" data-definition="uint8 是 0 到 255 的无符号 8 位整数类型，普通彩色图像常用它保存每个颜色值。">uint8</span>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="2" data-sender="contract" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">C</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Contract</span>
+                <p>我把图像和参数装进 <code>ReconstructRequest</code>，字段与 <span class="term" data-definition="dtype 是数组中每个数字的数据类型，例如 uint8 或 float32。类型不同，会影响范围、精度和占用空间。">dtype</span> 都要符合约定。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="3" data-sender="base-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">BC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">BaseClient</span>
+                <p>我请 wire 打包成字节，再用 <span class="term" data-definition="POST 是一种 HTTP 请求方法，表示把一份数据交给服务端处理。">POST</span> 发往 reconstruct route。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="4" data-sender="fastapi-route" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">FR</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">FastAPI Route</span>
+                <p>我先验 request schema，再让 <span class="term" data-definition="线程池是一组可重复使用的工作线程。服务端把耗时任务交给空闲线程，避免接收请求的主流程一直被占住。">thread pool</span> 里的 worker 调用 handler。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="5" data-sender="fastfs-server" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-6)">FS</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-6)">FastFSServer</span>
+                <p>我收到 <code>ReconstructRequest</code>。真实模式交给 backend；fake 模式就直接造一张全零结果。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="6" data-sender="backend" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-7)">B</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-7)">Backend</span>
+                <p>我在 GPU 上 infer，算出 <span class="term" data-definition="视差是同一个物体在左右图像中的水平位置差。通常视差越大，物体越靠近相机。">disparity</span>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="7" data-sender="fastfs-server" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-6)">FS</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-6)">FastFSServer</span>
+                <p>收到，我把 disparity 装进 <code>ReconstructResponse</code>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="8" data-sender="base-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">BC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">BaseClient</span>
+                <p>响应字节已拆包，也通过 <code>ReconstructResponse</code> 检查。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="9" data-sender="fastfs-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">FC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">FastFSClient</span>
+                <p>User Code，这是你要的 NumPy disparity 数组。签收完成！</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-typing" style="display:none">
+            <div class="chat-avatar" id="chat-module-3-request-journey-typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">下一条</button>
+            <button class="btn chat-all-btn">播放全部</button>
+            <button class="btn chat-reset-btn">重新播放</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">同一趟旅程，换成数据的视角</h2>
+        <p>点击“下一站”，观察内容不变、外包装不断变化：对象变字节，字节再变回有类型的对象。</p>
+
+        <div class="flow-animation" id="flow-module-3-request-journey" aria-label="FastFS 端到端数据流" data-steps='[
+          {"highlight":"flow-m3-actor-1","label":"左右两张 NumPy 图像进入客户端"},
+          {"highlight":"flow-m3-actor-2","label":"客户端创建 ReconstructRequest","packet":true,"from":"m3-actor-1","to":"m3-actor-2"},
+          {"highlight":"flow-m3-actor-3","label":"wire 把请求序列化为 MessagePack 字节","packet":true,"from":"m3-actor-2","to":"m3-actor-3"},
+          {"highlight":"flow-m3-actor-4","label":"BaseClient 把字节 POST 到 reconstruct route","packet":true,"from":"m3-actor-3","to":"m3-actor-4"},
+          {"highlight":"flow-m3-actor-5","label":"route 验证后把任务交给 thread pool worker","packet":true,"from":"m3-actor-4","to":"m3-actor-5"},
+          {"highlight":"flow-m3-actor-6","label":"FastFSServer 调用 backend 进行推理","packet":true,"from":"m3-actor-5","to":"m3-actor-6"},
+          {"highlight":"flow-m3-actor-7","label":"视差被装入 ReconstructResponse","packet":true,"from":"m3-actor-6","to":"m3-actor-7"},
+          {"highlight":"flow-m3-actor-8","label":"响应模型被序列化为 MessagePack 字节","packet":true,"from":"m3-actor-7","to":"m3-actor-8"},
+          {"highlight":"flow-m3-actor-9","label":"客户端拆包并返回有类型的响应","packet":true,"from":"m3-actor-8","to":"m3-actor-9"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-m3-actor-1">
+              <div class="flow-actor-icon">🖼️</div>
+              <span>image array</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-2">
+              <div class="flow-actor-icon">📋</div>
+              <span><span class="term" data-definition="请求模型是按 schema 组织好的请求对象；它把图像和参数放进固定字段。">request model</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-3">
+              <div class="flow-actor-icon">📦</div>
+              <span><span class="term" data-definition="bytes 是原始字节序列，也是网络传输数据时看到的形式。程序需要先序列化，才能把复杂对象变成字节。">request bytes</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-4">
+              <div class="flow-actor-icon">🌐</div>
+              <span>POST route</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-5">
+              <div class="flow-actor-icon">🧵</div>
+              <span><span class="term" data-definition="worker 是执行具体任务的工作单元。这里它在线程池中运行服务端 handler。">worker</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-6">
+              <div class="flow-actor-icon">⚙️</div>
+              <span>backend</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-7">
+              <div class="flow-actor-icon">✅</div>
+              <span>response model</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-8">
+              <div class="flow-actor-icon">📦</div>
+              <span>response bytes</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-9">
+              <div class="flow-actor-icon">🎁</div>
+              <span><span class="term" data-definition="typed response 是已经按响应 schema 检查并还原的对象，调用方可以放心读取规定好的字段。">typed response</span></span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-m3-packet"></div>
+          <div class="flow-step-label" id="flow-m3-label">点击“下一站”开始追踪</div>
+
+          <div class="flow-controls">
+            <button class="btn flow-next-btn">下一站</button>
+            <button class="btn flow-reset-btn">从头开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="callout callout-info animate-in">
+          <div class="callout-icon">🔎</div>
+          <div>
+            <strong>排错时，先问“包裹走到哪一站了？”</strong>
+            <p>没发出就看 client；422 看 request contract；500 看 handler 与 backend；成功返回却无法读取，就对照 response contract。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">真实代码：寄件端先整理，再封箱</h2>
+        <p>左边是项目原码，右边把每一次交接翻译成日常语言。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · client.py</span>
+            <pre><code><span class="code-line">req <span class="code-operator">=</span> <span class="code-function">ReconstructRequest</span>(</span>
+<span class="code-line">    left<span class="code-operator">=</span><span class="code-function">_as_hwc3_u8</span>(left),</span>
+<span class="code-line">    right<span class="code-operator">=</span><span class="code-function">_as_hwc3_u8</span>(right),</span>
+<span class="code-line">    valid_iters<span class="code-operator">=</span>valid_iters,</span>
+<span class="code-line">    max_disp<span class="code-operator">=</span>max_disp,</span>
+<span class="code-line">)</span>
+<span class="code-line"><span class="code-keyword">return</span> self.<span class="code-function">_request</span>(req, ReconstructResponse)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">新建一张名为 <code>ReconstructRequest</code> 的寄件单。</p>
+              <p class="tl">左图先被整理成 HWC3、uint8 的统一格式。</p>
+              <p class="tl">右图也执行完全相同的本地整理。</p>
+              <p class="tl">把有效迭代次数原样写进寄件单。</p>
+              <p class="tl">把最大视差限制也写进去。</p>
+              <p class="tl">请求模型装填完成。</p>
+              <p class="tl">发送请求，并指定回件必须能还原成 <code>ReconstructResponse</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · wire.py</span>
+            <pre><code><span class="code-line"><span class="code-keyword">def</span> <span class="code-function">pack</span>(payload: object) -&gt; bytes:</span>
+<span class="code-line">    <span class="code-keyword">return</span> msgpack.<span class="code-function">packb</span>(payload, default=msgpack_numpy.encode, use_bin_type=<span class="code-keyword">True</span>)</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">unpack</span>(raw: bytes) -&gt; object:</span>
+<span class="code-line">    <span class="code-keyword">return</span> msgpack.<span class="code-function">unpackb</span>(raw, object_hook=msgpack_numpy.decode, raw=<span class="code-keyword">False</span>)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义 <code>pack</code>：输入一个 <span class="term" data-definition="payload 是一次请求或响应真正携带的数据内容，像包裹盒里的物品。">payload</span> 对象，输出字节。</p>
+              <p class="tl">MessagePack 负责封箱；<span class="term" data-definition="msgpack_numpy 是 MessagePack 的 NumPy 转换助手，让数组能被编码成字节并在另一端恢复。">msgpack_numpy</span> 专门处理 NumPy 数据。</p>
+              <p class="tl">两种方向在这里对称相遇。</p>
+              <p class="tl">定义 <code>unpack</code>：输入原始字节，输出对象。</p>
+              <p class="tl">MessagePack 负责拆箱；NumPy 解码助手把数组恢复回来。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">真实代码：收件端只处理自己的那一棒</h2>
+        <p><code>FastFSServer</code> 不负责网络封箱；它接到合格请求后，决定走假结果还是调用真实 backend。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · server.py</span>
+            <pre><code><span class="code-line">@<span class="code-function">handler</span>(ReconstructRequest)</span>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">reconstruct</span>(self, req: ReconstructRequest) -&gt; ReconstructResponse:</span>
+<span class="code-line">    <span class="code-keyword">if</span> self._fake:</span>
+<span class="code-line">        H, W <span class="code-operator">=</span> req.left.shape[:<span class="code-number">2</span>]</span>
+<span class="code-line">        <span class="code-keyword">return</span> <span class="code-function">ReconstructResponse</span>(disparity=np.<span class="code-function">zeros</span>((H, W), dtype=np.float32))</span>
+<span class="code-line"></span>
+<span class="code-line">    disp, _timings <span class="code-operator">=</span> self.backend.<span class="code-function">infer</span>(</span>
+<span class="code-line">        req.left,</span>
+<span class="code-line">        req.right,</span>
+<span class="code-line">        valid_iters=req.valid_iters,</span>
+<span class="code-line">        max_disp=req.max_disp,</span>
+<span class="code-line">    )</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-function">ReconstructResponse</span>(disparity=disp)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl"><span class="term" data-definition="装饰器是写在函数上方的 @ 标记，用来给函数登记额外规则；这里它声明该函数处理 ReconstructRequest。">装饰器</span>把这类请求登记给这个 handler。</p>
+              <p class="tl">定义 reconstruct：收请求，承诺返回 <code>ReconstructResponse</code>。</p>
+              <p class="tl">如果开启 <span class="term" data-definition="fake 模式跳过真实模型，用可预测的假结果测试其余链路是否通畅。它很适合把网络问题和模型问题分开。">fake 模式</span>……</p>
+              <p class="tl">先读出左图的高度 H 和宽度 W。</p>
+              <p class="tl">直接返回一张 H × W 的全零 <span class="term" data-definition="float32 是 32 位浮点数类型，能保存小数；视差结果通常用它表示。">float32</span> 视差图。</p>
+              <p class="tl">否则进入真实计算路径。</p>
+              <p class="tl">调用 backend 的 <span class="term" data-definition="infer 是 inference 的缩写，意思是让已准备好的模型根据输入计算结果。">infer</span>，接收视差和计时信息。</p>
+              <p class="tl">把左图交给 backend。</p>
+              <p class="tl">把右图也交给 backend。</p>
+              <p class="tl">传入请求中约定的迭代次数。</p>
+              <p class="tl">传入请求中约定的最大视差。</p>
+              <p class="tl">backend 调用结束。</p>
+              <p class="tl">最后仍按 contract 包成响应模型，不把裸数组直接扔回去。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🧭</div>
+          <div>
+            <strong>边界越清楚，故障范围越小</strong>
+            <p>client 管输入，contract 管格式，wire 管字节，route 管接入，handler 管协调，backend 管计算。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">现在轮到你：包裹卡在哪一站？</h2>
+        <p>四个新故障都发生在不同边界。选择最先该检查的位置，再看解释。</p>
+
+        <div class="quiz-container" id="quiz-module-3-request-journey">
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。网络还没发出就失败，先检查 FastFSClient 的输入整理，特别是 _as_hwc3_u8 对形状和 dtype 的处理。"
+               data-explanation-wrong="还没到网络、route 或 backend。先从最后一个确实运行过的边界查起，也就是客户端输入整理。">
+            <h3 class="quiz-question">1. 左图是 <code>float64</code>，调用在发出 HTTP 请求前就报告形状或转换错误。第一站查哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>FastFSClient</code> 的 <code>_as_hwc3_u8</code></span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>FastAPI route 的 500 日志</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>GPU 上的 backend 输出</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。422 通常说明请求先被 schema 拒绝，handler 还没有拿到这个包裹。"
+               data-explanation-wrong="422 的关键信号是输入没有通过 schema 验证。先对照 ReconstructRequest，而不是直接怀疑 GPU。">
+            <h3 class="quiz-question">2. 请求收到 <code>422</code>，而 <code>FastFSServer.reconstruct</code> 的第一行日志从未出现。最合理的判断是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>backend 已经算出错误视差</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>请求字段或类型没通过 <code>ReconstructRequest</code> schema</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>客户端没能拆开响应字节</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="对。请求已进入真实计算路径，500 又指向服务端内部失败；应把 handler 日志与 backend.infer 的异常连起来看。"
+               data-explanation-wrong="请求已经通过输入和 schema 阶段。此时优先查服务端 handler 调用 backend 的位置，能最快缩小范围。">
+            <h3 class="quiz-question">3. 请求通过验证，但真实模式返回 <code>500</code>；日志停在调用 <code>backend.infer</code> 之后。下一步最有效的是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>重新检查调用者变量名有没有拼错</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>只检查 MessagePack 是否压缩得足够小</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>查看 handler 与 <code>backend.infer</code> 的异常和输入参数</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。网络往返已经成功，失败发生在响应边界；比较 backend 的 disp 与 ReconstructResponse 对 disparity 的 dtype 约定最直接。"
+               data-explanation-wrong="成功收到字节说明寄送链路基本通了。现在应检查响应内容是否符合双方共用的 contract。">
+            <h3 class="quiz-question">4. HTTP 已成功返回，拆包后却提示 <code>disparity</code> 的 dtype 与响应约定不符。优先比较哪两处？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>backend</code> 产出的 <code>disp</code> 与 <code>ReconstructResponse</code> contract</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>输入图像文件名与 POST route 名称</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>thread pool 大小与 GPU 风扇转速</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module-3-request-journey')">检查思路</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module-3-request-journey')">重新思考</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🏁</div>
+          <div>
+            <strong>你现在拥有一张端到端排错地图</strong>
+            <p>下一模块会继续追踪：server 和 backend 是怎样被启动、准备好并保持可运行的。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

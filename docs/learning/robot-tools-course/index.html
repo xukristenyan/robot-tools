@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Tools 实战课：从安装到新增 Service</title>
+
+  <!-- Google Fonts: Bricolage Grotesque · DM Sans · JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,500&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+
+  <!--
+    CUSTOMIZE PER COURSE — change only the three accent variables below.
+    Options:
+      vermillion  #D94F30 / #C4432A / #FDEEE9 / #E8836C  (default)
+      coral       #E06B56 / #C85A47 / #FDECEA / #E89585
+      teal        #2A7B9B / #1F6280 / #E4F2F7 / #5A9DB8
+      amber       #D4A843 / #BF9530 / #FDF5E0 / #E0C070
+      forest      #2D8B55 / #226B41 / #E8F5EE / #5AAD7A
+  -->
+  <style>
+    :root {
+      --color-accent:       #2A7B9B;
+      --color-accent-hover: #1F6280;
+      --color-accent-light: #E4F2F7;
+      --color-accent-muted: #5A9DB8;
+    }
+  </style>
+
+  <script src="main.js" defer></script>
+</head>
+<body>
+
+  <nav class="nav" id="nav">
+    <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    <div class="nav-inner">
+      <span class="nav-title">Robot Tools 实战课：从安装到新增 Service</span>
+      <div class="nav-dots" id="nav-dots" role="tablist">
+        <button class="nav-dot" data-target="module-1" data-tooltip="从 Clone 到第一次调用" role="tab" aria-label="Module 1: 从 Clone 到第一次调用"></button>
+        <button class="nav-dot" data-target="module-2" data-tooltip="文件地图" role="tab" aria-label="Module 2: 文件地图"></button>
+        <button class="nav-dot" data-target="module-3" data-tooltip="一次调用的旅程" role="tab" aria-label="Module 3: 一次调用的旅程"></button>
+        <button class="nav-dot" data-target="module-4" data-tooltip="Fake 到 Real" role="tab" aria-label="Module 4: Fake 到 Real"></button>
+        <button class="nav-dot" data-target="module-5" data-tooltip="增加新 Service" role="tab" aria-label="Module 5: 增加新 Service"></button>
+        <button class="nav-dot" data-target="module-6" data-tooltip="调试与运维" role="tab" aria-label="Module 6: 调试与运维"></button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main">
+    <!-- modules/*.html content is assembled here by build.sh -->
+<section class="module" id="module-1" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">从 Clone 到第一次调用</h1>
+      <p class="module-subtitle">先用最轻的假服务走通全程，再只为需要的真实模型装行李。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">新电脑上，先别搬进整座仓库</h2>
+        <p>假设你刚换了一台 <span class="term" data-definition="GPU 是擅长同时做大量计算的处理器，常用来运行 AI 模型；可以把它理解成专门处理重活的加速器。">GPU</span> 电脑，只想运行 <span class="term" data-definition="SAM3 是 robot-tools 能启动的一项模型服务；这一章把它当作你唯一要带走的装备。">SAM3</span>。普通 <span class="term" data-definition="clone 是把远程代码仓库完整复制到本机；像先拿到一只空行李箱，但里面还没有额外模型和环境。">clone</span> 只是拿到行李箱，<code>services.yaml</code> 才是装箱清单。</p>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item">
+            <code class="badge-code">FAKE · 先走通</code>
+            <span class="badge-desc"><span class="term" data-definition="fake mode 是用轻量假结果代替真实模型计算的运行方式；它用来验证命令、服务器和调用链是否连通。">假模式</span>不取模型、不做重计算，先证明整条链路能工作。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">REAL · 再装载</code>
+            <span class="badge-desc">只为选中的服务拉取<span class="term" data-definition="upstream 指这个项目依赖的外部原始项目；只有真实服务需要时，才把对应上游代码取下来。">上游项目</span>、<span class="term" data-definition="模型权重是 AI 从训练中学到的大量数值参数；它们通常是需要另外下载的大文件。">模型权重</span>、<span class="term" data-definition="CUDA 是让 NVIDIA GPU 执行通用计算的软件平台；真实 AI 模型常依赖它，假模式通常不需要。">CUDA</span> 与<span class="term" data-definition="依赖是程序运行前必须准备的其他软件包；像设备需要合适的电池和转接头。">依赖</span>。</span>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong>核心判断</strong>
+            <p>假模式成功，说明“配置 → 启动 → 调用”已经连通；之后真实模式失败，就集中查模型安装，而不是把整条链路一起怀疑。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">第一件装备：只选 SAM3</h2>
+        <p><span class="term" data-definition="YAML 是一种给人阅读的配置格式，用缩进表达层级；这里用它写要启动哪些服务。">YAML</span> <span class="term" data-definition="配置文件是把可调整选项放在代码之外的文件；换服务时改清单，不必改程序。">配置文件</span>就是旅行清单。这个<span class="term" data-definition="profile 是一组可重复使用的运行选择；这里指 services.yaml 中选中的服务及其参数。">运行配置</span>只写一个服务，并给它加上假模式参数。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">git clone &lt;robot-tools-url&gt;</span>
+<span class="code-line">cd robot-tools</span>
+<span class="code-line"></span>
+<span class="code-line">services:</span>
+<span class="code-line">  - name: sam3</span>
+<span class="code-line">    port: 5558</span>
+<span class="code-line">    extra_args: ["--fake"]</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">把 robot-tools 代码复制到本机。</p>
+              <p class="tl">进入刚复制的项目目录，后面的命令都从这里执行。</p>
+              <p class="tl">开始列出这次要运行的<span class="term" data-definition="服务是持续等待请求并返回结果的程序；这里每个模型都可以作为一个独立服务启动。">服务</span>。</p>
+              <p class="tl">清单里只放 <code>sam3</code>，不会顺便选择其他模型。</p>
+              <p class="tl"><span class="term" data-definition="端口是同一台电脑上区分不同网络服务的数字门牌号；5558 就是 SAM3 服务的门牌。">端口</span> <code>5558</code> 是它对外等待请求的门牌号。</p>
+              <p class="tl"><span class="term" data-definition="参数是跟在命令或配置后的额外选项；--fake 这个标志会改变服务的运行方式。">额外参数</span> <code>--fake</code> 要求先启动轻量假服务。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">前 15 分钟：把安装和调用拆开</h2>
+        <p>下面的 <span class="term" data-definition="CLI 是命令行界面：你在终端输入文字命令来操作程序。和 AI 协作时，可以说“请运行 CLI 命令并贴出输出”。">CLI</span> 生命周期像一条检查路线。先走轻量路线，确认无误后再拐进真实模型路线。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">uv run robot-tools sync      # exact locked light/fake venvs; no upstreams or weights</span>
+<span class="code-line">uv run robot-tools install   # selected upstreams and locked real dependencies</span>
+<span class="code-line">uv run robot-tools download  # selected model artifacts</span>
+<span class="code-line">uv run robot-tools doctor    # read-only local checks</span>
+<span class="code-line">uv run robot-tools launch    # selected HTTP servers</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><code>sync</code> 创建严格锁定的轻量／假<span class="term" data-definition="venv 是 Python 的独立虚拟环境；它把这个服务需要的软件包和电脑上的其他项目隔开。">虚拟环境</span>，不取上游和权重。</p>
+              <p class="tl"><code>install</code> 只为已选服务准备真实依赖、补丁与<span class="term" data-definition="原生构建是把 C、C++ 等底层代码编译成本机能运行的程序；它通常比安装普通 Python 包更容易受系统环境影响。">原生构建</span>；需要时也会处理<span class="term" data-definition="submodule 是主代码仓库记录的另一个仓库引用；像行李箱里的可选收纳袋，需要时才单独取来。">子模块</span>。</p>
+              <p class="tl"><code>download</code> 只下载已选模型的<span class="term" data-definition="模型产物是运行模型所需的文件，例如权重或配置；它们不是普通源代码。">产物</span>。</p>
+              <p class="tl"><code>doctor</code> 只读取本机状态并报告问题，不修改环境。</p>
+              <p class="tl"><code>launch</code> 启动选中的 <span class="term" data-definition="HTTP 是浏览器和网络服务常用的请求规则；这里的模型服务器通过它接收调用。">HTTP</span> 服务器，开始等待调用。</p>
+            </div>
+          </div>
+        </div>
+
+        <p><code>sync</code>、<code>install</code>、<code>download</code>、<code>doctor</code> 和 <code>launch</code> 默认读取当前目录的 <code>services.yaml</code>；只有使用另一份 profile 时才需要在命令后写路径。</p>
+
+        <h3 class="screen-subheading">你的“前 15 分钟”清单</h3>
+        <div class="step-cards animate-in">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body"><strong>Clone 项目</strong><p>只拿代码，不把所有模型都搬过来。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body"><strong>写一项配置</strong><p><code>services.yaml</code> 只选 <code>sam3</code>，并保留 <code>--fake</code>。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body"><strong>运行 sync</strong><p>先得到可重复的轻量环境，把环境问题单独解决。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body"><strong>运行 launch</strong><p>让假服务器先在选定端口等待请求。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body"><strong>检查 status</strong><p>确认下游看到的是正确服务地址。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">6</div>
+            <div class="step-body"><strong>发出第一次调用</strong><p>拿到假结果后，再决定是否进入真实安装路线。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">亲手点一遍：一次请求怎样走完全程</h2>
+        <p>点击“下一步”追踪<span class="term" data-definition="数据流是信息在不同步骤或组件之间移动的路线；看懂它，就知道失败时该查哪一段。">数据流</span>。前六步是第一次假调用，后三步是你确认要用真实模型后才走的可选支线。</p>
+
+        <div class="flow-animation animate-in" data-steps='[
+          {"highlight":"flow-m1-actor-1","label":"1. Clone：本机先拿到 robot-tools 代码"},
+          {"highlight":"flow-m1-actor-2","label":"2. 选择配置：services.yaml 只保留 SAM3 与 fake 参数","packet":true,"from":"m1-actor-1","to":"m1-actor-2"},
+          {"highlight":"flow-m1-actor-3","label":"3. Sync：创建锁定的轻量假环境","packet":true,"from":"m1-actor-2","to":"m1-actor-3"},
+          {"highlight":"flow-m1-actor-4","label":"4. Launch fake：假服务器开始等待请求","packet":true,"from":"m1-actor-3","to":"m1-actor-4"},
+          {"highlight":"flow-m1-actor-5","label":"5. Status：下游确认服务地址可见","packet":true,"from":"m1-actor-4","to":"m1-actor-5"},
+          {"highlight":"flow-m1-actor-6","label":"6. Client call：客户端收到假结果，基础链路成立","packet":true,"from":"m1-actor-5","to":"m1-actor-6"},
+          {"highlight":"flow-m1-actor-7","label":"7. 可选 Install：只安装 SAM3 的真实代码与依赖","packet":true,"from":"m1-actor-6","to":"m1-actor-7"},
+          {"highlight":"flow-m1-actor-8","label":"8. 可选 Download：只下载 SAM3 模型产物","packet":true,"from":"m1-actor-7","to":"m1-actor-8"},
+          {"highlight":"flow-m1-actor-9","label":"9. 可选 Doctor：只读检查真实环境，再启动真实服务","packet":true,"from":"m1-actor-8","to":"m1-actor-9"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-m1-actor-1"><div class="flow-actor-icon">📦</div><span>Clone</span></div>
+            <div class="flow-actor" id="flow-m1-actor-2"><div class="flow-actor-icon">🧳</div><span>选配置</span></div>
+            <div class="flow-actor" id="flow-m1-actor-3"><div class="flow-actor-icon">🔒</div><span>Sync</span></div>
+            <div class="flow-actor" id="flow-m1-actor-4"><div class="flow-actor-icon">🟢</div><span>Launch fake</span></div>
+            <div class="flow-actor" id="flow-m1-actor-5"><div class="flow-actor-icon">🔎</div><span>Status</span></div>
+            <div class="flow-actor" id="flow-m1-actor-6"><div class="flow-actor-icon">📨</div><span><span class="term" data-definition="客户端是主动向服务器发送请求的程序；这里它会读取地址、发出调用并接收结果。">客户端调用</span></span></div>
+            <div class="flow-actor" id="flow-m1-actor-7"><div class="flow-actor-icon">🧰</div><span>Install</span></div>
+            <div class="flow-actor" id="flow-m1-actor-8"><div class="flow-actor-icon">⬇️</div><span>Download</span></div>
+            <div class="flow-actor" id="flow-m1-actor-9"><div class="flow-actor-icon">🩺</div><span>Doctor</span></div>
+          </div>
+
+          <div class="flow-packet" id="flow-m1-packet"></div>
+          <div class="flow-step-label" id="flow-m1-label">点击“下一步”开始追踪</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item"><code class="badge-code">轻量主线</code><span class="badge-desc">Clone → 配置 → sync → launch fake → status → 调用</span></div>
+          <div class="badge-item"><code class="badge-code">真实支线</code><span class="badge-desc">install → download → doctor；只有确认需要时才进入</span></div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">另一台电脑只做调用，不必重装模型</h2>
+        <p>下游项目安装 <span class="term" data-definition="SDK 是供其他程序直接调用的一组工具类和函数；它像遥控器，让你不用自己拼底层网络请求。">SDK</span>，再从 <span class="term" data-definition="endpoint 是服务的可访问地址，通常包含主机和端口；换服务器时，客户端主要改这个地址。">endpoint</span> 配置中找服务器。这样模型电脑负责运行，下游笔记本只负责发请求。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">uv add --editable /path/to/robot-tools</span>
+<span class="code-line">cp /path/to/robot-tools/endpoints.example.yaml endpoints.yaml</span>
+<span class="code-line">uv run robot-tools status endpoints.yaml</span>
+<span class="code-line"></span>
+<span class="code-line">from robot_tools.core.endpoints import get_endpoint</span>
+<span class="code-line">from robot_tools.services.fastfs import FastFSClient</span>
+<span class="code-line"></span>
+<span class="code-line">client = FastFSClient.from_endpoint(get_endpoint("fastfs", "endpoints.yaml"))</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">把本地 robot-tools 以<span class="term" data-definition="editable 安装会让项目直接引用本地源码；你修改源码后通常不必重新安装。">可编辑方式</span>加入下游项目。</p>
+              <p class="tl">复制地址模板，生成这个项目自己的 <code>endpoints.yaml</code>。</p>
+              <p class="tl">先运行 <code>status</code>，确认配置中的服务地址能被看到。</p>
+              <p class="tl">导入读取地址的<span class="term" data-definition="函数是一段可以按名字调用的操作；输入服务名后，get_endpoint 会返回对应地址。">函数</span> <code>get_endpoint</code>。</p>
+              <p class="tl">导入 FastFS 的<span class="term" data-definition="类是创建同类对象的模板；FastFSClient 这个类规定客户端会怎样连接和调用服务。">客户端类</span>。</p>
+              <p class="tl">从配置找到 <code>fastfs</code> 地址，再创建可调用的 <code>client</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item"><code class="badge-code">模型服务器</code><span class="badge-desc">运行真实模型与 <span class="term" data-definition="API 是程序之间约定好的调用入口；客户端按这个约定发送请求，服务器按约定返回结果。">API</span>。</span></div>
+          <div class="badge-item"><code class="badge-code">下游笔记本</code><span class="badge-desc">保留 SDK 与 <code>endpoints.yaml</code>，不需要复制服务器的权重和 CUDA 环境。</span></div>
+          <div class="badge-item"><code class="badge-code">服务器搬家</code><span class="badge-desc">更新 endpoint 的<span class="term" data-definition="主机是网络上运行服务的电脑或机器地址；服务搬到另一台机器时，主机地址会改变。">主机</span>与端口，再用 <code>status</code> 验证。</span></div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">情境演练：你会怎么做？</h2>
+        <p>不考缩写，只考下一步判断。每题先选最稳妥的行动，再查看反馈。</p>
+
+        <div class="quiz-container" id="quiz-module1">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="正是这样：先只选 SAM3 并用 fake 走通，能避免无关模型的上游、权重和 CUDA 依赖。"
+               data-explanation-wrong="再想想装箱清单的作用：目标是只证明 SAM3 的链路，不必先为其他模型付出安装成本。">
+            <h3 class="quiz-question">1. 新 GPU 电脑只需要 SAM3，最稳妥的第一轮是什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先安装并下载所有模型，保证以后都能用</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span><code>services.yaml</code> 只选 SAM3 和 <code>--fake</code>，先 sync、launch 并调用</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>跳过配置文件，直接猜一个端口调用</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="对：fake 已证明基础链路成立。现在把注意力缩到真实依赖、模型产物和本机检查，排错范围会小很多。"
+               data-explanation-wrong="fake 成功是一条重要线索：配置、启动和客户端路径大体没问题，不必全部推倒重来。">
+            <h3 class="quiz-question">2. 假服务调用成功，但切到真实 SAM3 后失败，应该先怎么缩小问题？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新 clone，并假设所有步骤都坏了</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先修改下游业务代码，绕过服务</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>检查选中服务的 install、download，再用 doctor 查看真实环境</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="完全正确：下游只装可编辑 SDK、复制 endpoint 配置并跑 status，就能先验证它看见哪台服务器。"
+               data-explanation-wrong="下游笔记本是遥控器，不是模型机。它需要 SDK 和地址配置，不需要重复下载模型权重。">
+            <h3 class="quiz-question">3. 同事的下游笔记本只负责调用模型服务器，应该准备什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>可编辑安装 robot-tools，复制 <code>endpoints.yaml</code>，再运行 status</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>把服务器上的全部权重和 CUDA 环境也复制过去</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>只复制一段 Python 调用代码，不提供服务地址</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="没错：服务器位置是 endpoint 配置的职责。更新地址并用 status 验证，比重装客户端或模型更直接。"
+               data-explanation-wrong="服务器只是换了网络位置；下游的调用方式没有变。先找负责记录位置的 endpoint 配置。">
+            <h3 class="quiz-question">4. 模型服务器搬到另一台主机，下游调用失败，第一处该改哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新安装下游 SDK 的全部依赖</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>更新 <code>endpoints.yaml</code> 中的主机和端口，再运行 status</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新下载 SAM3 权重到下游笔记本</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('quiz-module1')">检查思路</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('quiz-module1')">重新作答</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🧭</div>
+          <div class="callout-content"><strong>带走这一条排错路线</strong><p>先证明轻量链路，再装真实模型；地址变化查 endpoint，真实计算失败查 install、download 与 doctor。</p></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="module" id="module-2" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">文件地图：需求应该送到哪一层？</h1>
+      <p class="module-subtitle">把仓库当成有标签的工具库：先找货架，再动文件。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in" aria-labelledby="module-2-screen-1">
+        <h2 class="screen-heading" id="module-2-screen-1">先看标签，不要一上来全库搜索</h2>
+        <p>同一句“帮我改一下”，可能指向完全不同的货架。判断标准不是文件名像不像，而是变化由谁负责。</p>
+
+        <div class="pattern-cards" aria-label="六类文件货架">
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🧰</div>
+            <h3 class="pattern-title">根目录</h3>
+            <p class="pattern-desc">项目总说明、轻量公共依赖、连接配置样例与<span class="term" data-definition="锁文件（lockfile）记录依赖的精确版本，让不同电脑装出尽量相同的环境。与 AI 沟通时可以说：‘更新依赖并同步锁文件。’">锁文件</span>。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🧭</div>
+            <h3 class="pattern-title">公共 SDK</h3>
+            <p class="pattern-desc"><span class="term" data-definition="SDK 是给其他程序调用的一套现成工具。这里的公共 SDK 负责找服务、读配置和发送请求，不负责加载大型模型。">SDK</span> 像前台工具箱；<span class="term" data-definition="包（package）是一组可以一起导入和复用的 Python 代码文件，像一个贴好标签的工具盒。">包</span>里放共享规则，保持轻量。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">📨</div>
+            <h3 class="pattern-title">服务 API</h3>
+            <p class="pattern-desc"><span class="term" data-definition="API 是两个程序约定好的沟通方式：可以传什么、会收到什么。让 AI 改 API 时，要同时说明兼容旧调用方。">API</span> 目录里的 client 负责发送，contract 负责规定请求与响应形状。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🏭</div>
+            <h3 class="pattern-title">独立 runtime</h3>
+            <p class="pattern-desc"><span class="term" data-definition="runtime 是服务真正运行所需的独立环境，包含模型、硬件库和启动程序。它像机器房，不该塞进前台工具箱。">runtime</span> 放模型实现、服务进程、CUDA 与重型<span class="term" data-definition="依赖是代码运行时需要借用的其他软件包。轻量依赖给客户端用，重型依赖只留在对应 runtime。">依赖</span>。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🔌</div>
+            <h3 class="pattern-title">配置</h3>
+            <p class="pattern-desc"><span class="term" data-definition="配置（configuration）是无需改程序逻辑就能调整的值，例如主机地址、端口和开关。">配置</span>告诉 client 去哪里找服务；本机地址变化通常先看 endpoints 文件。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-accent)">
+            <div class="pattern-icon" style="background: var(--color-accent)">🧪</div>
+            <h3 class="pattern-title">示例・测试・文档</h3>
+            <p class="pattern-desc">examples 教怎么用，tests 防止旧功能被改坏，docs 解释怎么安装、排错与维护。</p>
+          </article>
+        </div>
+
+        <aside class="callout callout-accent">
+          <span class="callout-icon">💡</span>
+          <div>
+            <h3>Aha：用“责任”给 AI 指路</h3>
+            <p>可以直接说：“改 sam3 的 contract，不要把 Torch 放进根 pyproject。”这句话同时给出了目标货架和禁止越界的边界。</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-2">
+        <h2 class="screen-heading" id="module-2-screen-2">一张可扫描的仓库地图</h2>
+        <p>下面不要求背诵；遇到需求时，把它当索引用。相同文件名反复出现，说明它们是一套服务模板。</p>
+
+        <div class="file-tree" aria-label="robot-tools 文件树与职责">
+          <div class="ft-folder open">
+            <span class="ft-name">robot-tools/</span>
+            <span class="ft-desc">整个仓库</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">.gitmodules</span>
+                <span class="ft-desc">登记四个 upstream <span class="term" data-definition="Git submodule 是主仓库记录的另一个仓库版本。普通 clone 只拿到指针；需要某个真实模型时，install 才初始化对应 submodule。">submodule</span>；普通 clone 不会下载它们的内容</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">.gitignore · .github/workflows/ci.yml</span>
+                <span class="ft-desc">忽略本地产物 · GitHub 自动测试</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">.python-version</span>
+                <span class="ft-desc">根 SDK 默认使用的 Python 版本提示</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">README.md</span>
+                <span class="ft-desc">项目入口：快速开始与总览</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">pyproject.toml</span>
+                <span class="ft-desc">根 Python 项目与轻量 SDK 依赖；不要放 Torch / CUDA</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">uv.lock</span>
+                <span class="ft-desc">根项目依赖的精确版本</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">endpoints.example.yaml</span>
+                <span class="ft-desc">四个服务的 host / port 配置样例</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">services.example.yaml</span>
+                <span class="ft-desc">选择要管理的 service、运行模式与参数的样例</span>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">src/robot_tools/</span>
+                <span class="ft-desc">可被调用方安装的轻量公共代码</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">__init__.py</span>
+                    <span class="ft-desc">把目录标记并组织成 Python 包的入口</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">launcher.py</span>
+                    <span class="ft-desc">robot-tools 命令行入口：sync / install / download / launch / status / doctor</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">registry.py</span>
+                    <span class="ft-desc"><span class="term" data-definition="注册表（registry）是‘名字 → 详细资料’的集中清单。新增服务时，可让 AI 检查它的目录、启动命令和默认端口是否都登记了。">注册表</span>：service id → runtime 目录、启动命令、端口、GPU 要求</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">runtime_state.py · py.typed</span>
+                    <span class="ft-desc">判断 fake / real 安装状态 · 告诉类型检查器本包提供类型信息</span>
+                  </div>
+
+                  <div class="ft-folder open">
+                    <span class="ft-name">core/</span>
+                    <span class="ft-desc">所有 service 共用的 HTTP、配置与协议基础设施</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">client.py</span><span class="ft-desc">统一发 HTTP 请求，并核对 health 身份与协议</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py</span><span class="ft-desc">创建 FastAPI app、health 与 action route</span></div>
+                      <div class="ft-file"><span class="ft-name">wire.py</span><span class="ft-desc">MessagePack 序列化 / 反序列化</span></div>
+                      <div class="ft-file"><span class="ft-name">endpoints.py</span><span class="ft-desc">读取 service id → host / port</span></div>
+                      <div class="ft-file"><span class="ft-name">exceptions.py · __init__.py</span><span class="ft-desc">共享异常 · 公共导出</span></div>
+                    </div>
+                  </div>
+
+                  <div class="ft-folder open">
+                    <span class="ft-name">services/</span>
+                    <span class="ft-desc">按 service 分组的轻量公开 API；这里不加载真实模型</span>
+                    <div class="ft-children">
+                      <div class="ft-folder"><span class="ft-name">fastfs/ · graspgen/ · graspgenx/ · sam3/</span><span class="ft-desc">每个目录都有 __init__.py、client.py、contract.py：导出、调用、请求/响应<span class="term" data-definition="契约（contract）是调用双方都遵守的数据约定。新增字段时应先改这里，再检查 client、server 和测试是否一致。">契约</span></span></div>
+                      <div class="ft-file"><span class="ft-name">__init__.py</span><span class="ft-desc">services 包入口</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">runtimes/</span>
+                <span class="ft-desc">四间互相隔离的重型机器房</span>
+                <div class="ft-children">
+                  <div class="ft-folder open">
+                    <span class="ft-name">graspgen/</span>
+                    <span class="ft-desc">graspgen 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">可运行 fake server 的轻量环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型的重型依赖声明与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py</span><span class="ft-desc">HTTP 服务入口 · 上游模型适配器</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh · doctor.py</span><span class="ft-desc">装环境 · 取模型资源 · 检查真实运行条件的<span class="term" data-definition="脚本（script）是按顺序自动执行任务的小程序，例如一次完成安装或检查。">脚本</span></span></div>
+                      <div class="ft-file"><span class="ft-name">compat/ · patches/</span><span class="ft-desc">上游兼容补丁 · 本仓库额外资源（该 service 按需存在）</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；只有安装这个 service 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">graspgenx/</span>
+                    <span class="ft-desc">graspgenx 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh · compat/</span><span class="ft-desc">按需安装、取权重、应用兼容补丁</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 graspgenx 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">fastfs/</span>
+                    <span class="ft-desc">fastfs 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh</span><span class="ft-desc">按需安装环境与下载模型资源</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 fastfs 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">sam3/</span>
+                    <span class="ft-desc">sam3 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh</span><span class="ft-desc">按需安装环境与下载模型资源</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 sam3 时才初始化</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">examples/</span>
+                <span class="ft-desc">README、公共配置、每个 service 的最小脚本与 stereo→grasp 流水线</span>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">tests/</span>
+                <span class="ft-desc">按 endpoints、协议、launcher、runtime、fake E2E 和 HTTP 往返分组的行为保护网，含测试用<span class="term" data-definition="fixture 是测试预先准备好的固定输入或假数据，像质检员手里的标准样品。让 AI 修测试时，应先说明 fixture 是否也要更新。">fixture</span></span>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">docs/</span>
+                <span class="ft-desc">ARCHITECTURE 记录设计约束，ADDING_A_SERVICE 是新增服务指南，learning/ 放交互课程</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pattern-cards" aria-label="重复文件名速查">
+          <article class="pattern-card">
+            <div class="pattern-icon">📦</div>
+            <h3 class="pattern-title">__init__.py</h3>
+            <p class="pattern-desc">控制一个包对外能 import 什么。<span class="term" data-definition="模块（module）通常就是一个可被导入的 Python 文件；包可以装下多个模块。">模块</span>加好了但导入不到，先看这里。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">☎️</div>
+            <h3 class="pattern-title">client.py</h3>
+            <p class="pattern-desc"><span class="term" data-definition="client（客户端）是主动发请求的一方；server（服务端）是在另一边接收并处理请求的一方。">客户端</span>的便捷调用、连接与错误处理。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">📐</div>
+            <h3 class="pattern-title">contract.py</h3>
+            <p class="pattern-desc">双方共同的数据边界。字段变化通常要联查 client、server、examples 和 tests。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🪛</div>
+            <h3 class="pattern-title">backend.py / real/</h3>
+            <p class="pattern-desc">backend 是连接上游模型的<span class="term" data-definition="adapter（适配器）把一种接口翻译成另一种接口，像旅行插头转换器。这里常用它把上游模型接入统一服务协议。">适配器</span>；real/ 只管理真实依赖声明和锁文件，不放业务代码。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🚪</div>
+            <h3 class="pattern-title">server.py</h3>
+            <p class="pattern-desc">服务进程入口：接请求、调用后端、回响应。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🔗</div>
+            <h3 class="pattern-title">editable install</h3>
+            <p class="pattern-desc"><span class="term" data-definition="可编辑安装（editable install）会让环境直接指向当前源码目录；改代码后通常无需重新安装。向 AI 描述环境时可说：‘这个包是 editable install。’">可编辑安装</span>适合边改边试公共 SDK；它不等于安装所有 runtime。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-3">
+        <h2 class="screen-heading" id="module-2-screen-3">三份真实清单，画出三条边界</h2>
+        <p>注册表管“怎么启动”，endpoint 配置管“去哪里连”，根依赖管“客户端必须带什么”。三者相邻，但责任不混用。</p>
+
+        <h3>① 注册表：服务名 → 运行资料</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/registry.py</span>
+            <pre><code>@dataclass(frozen=True)
+class ServiceRuntimeSpec:
+    service_id: str
+    runtime_dir: Path
+    server_command: tuple[str, ...]  # command after ``uv run``
+    default_port: int
+    gpu_required: bool = True
+
+SERVICE_REGISTRY: dict[str, ServiceRuntimeSpec] = {
+    "graspgen": ServiceRuntimeSpec(
+        service_id="graspgen",
+        runtime_dir=REPO_ROOT / "runtimes" / "graspgen",
+        server_command=("python", "server.py"),
+        default_port=5557,</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义一张不可随意改写的“服务运行卡”。</p>
+              <p class="tl">卡上先写唯一服务名，再写它的 runtime 在哪里。</p>
+              <p class="tl">接着记录 uv run 之后真正执行的<span class="term" data-definition="命令（command）是你交给终端执行的一行指示，例如启动 server.py。">命令</span>。</p>
+              <p class="tl">每张卡有默认端口；没有特别声明时，默认需要 GPU。</p>
+              <p class="tl">下面是一张以 service id 为键的总注册表。</p>
+              <p class="tl">先登记 graspgen，并让卡片内部的名字保持一致。</p>
+              <p class="tl">它的机器房就是 runtimes/graspgen。</p>
+              <p class="tl">启动它会运行 server.py；默认端口是 5557。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>② endpoint 配置：客户端 → 网络地址</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · endpoints.example.yaml</span>
+            <pre><code>endpoints:
+  graspgen:  { host: 127.0.0.1, port: 5557 }
+  graspgenx: { host: 127.0.0.1, port: 5559 }
+  fastfs:    { host: 127.0.0.1, port: 5556 }
+  sam3:      { host: 127.0.0.1, port: 5558 }</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">这是一份 <span class="term" data-definition="YAML 是一种适合人阅读的配置文件格式，用缩进和‘键: 值’表达结构。">YAML</span> 地址簿，endpoints 是所有服务地址的总栏目。</p>
+              <p class="tl">graspgen 与 graspgenx 都在本机，但各用自己的<span class="term" data-definition="端口（port）像一栋楼里的房间号：host 找到电脑，port 找到电脑上的具体服务。">端口</span>。</p>
+              <p class="tl">fastfs 和 sam3 也独占端口，因此四个服务可以同时运行。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>③ 根依赖：轻量 SDK 的随身工具</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · pyproject.toml</span>
+            <pre><code>dependencies = [
+    "numpy&gt;=1.26",
+    "msgpack&gt;=1.0",
+    "msgpack-numpy&gt;=0.4.8",
+    "pyyaml&gt;=6.0",
+    "pydantic&gt;=2",
+    "typing-extensions&gt;=4",
+    "httpx&gt;=0.27",
+]</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">这是根项目安装时会带上的公共依赖清单。</p>
+              <p class="tl">NumPy 处理数组；MessagePack 负责紧凑地打包数据。</p>
+              <p class="tl">PyYAML 读取配置；Pydantic 检查数据是否符合契约。</p>
+              <p class="tl">typing-extensions 补充类型能力；HTTPX 发网络请求。</p>
+              <p class="tl">清单到此结束：没有 Torch，也没有 CUDA。重型工具留在对应 runtime。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-4">
+        <h2 class="screen-heading" id="module-2-screen-4">动手分拣：把任务送到正确货架</h2>
+        <p>拖动任务卡到责任区；手机上可用手指拖动。想的不是“哪个名字眼熟”，而是“谁应该拥有这项变化”。</p>
+
+        <div class="dnd-container" id="dnd-module2">
+          <div class="dnd-chips" aria-label="待分类任务">
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-sdk">所有服务共用的连接重试</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-service-api">sam3 请求新增 crop_mode</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-runtime">升级 graspgen 的 CUDA 组合</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-config">把 fastfs 改连到另一台电脑</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-examples">补一个最短的调用演示</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-quality">增加回归样例与排错说明</div>
+          </div>
+
+          <div class="dnd-zones">
+            <div class="dnd-zone" data-correct="m2-sdk">
+              <p class="dnd-zone-label">公共 SDK</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-service-api">
+              <p class="dnd-zone-label">服务 API（client / contract）</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-runtime">
+              <p class="dnd-zone-label">独立 runtime</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-config">
+              <p class="dnd-zone-label">endpoint 配置</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-examples">
+              <p class="dnd-zone-label">examples</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-quality">
+              <p class="dnd-zone-label">tests / docs</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+          </div>
+
+          <div class="dnd-actions">
+            <button class="quiz-check-btn" type="button" onclick="checkDnD('dnd-module2')">检查分拣</button>
+            <button class="quiz-reset-btn" type="button" onclick="resetDnD('dnd-module2')">重新分拣</button>
+          </div>
+        </div>
+
+        <aside class="callout callout-info">
+          <span class="callout-icon">🗣️</span>
+          <div>
+            <h3>把分拣结果写成可执行指令</h3>
+            <p>“在 sam3 的 contract 加 crop_mode；同步 client、server、examples 和 tests；不要改其他服务的 runtime。”这比“加个字段”安全得多。</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-5">
+        <h2 class="screen-heading" id="module-2-screen-5">情境演练：先定改动边界</h2>
+        <p>每题都像一条真实任务单。选择最能保持分层清楚、又不漏掉相关文件的做法。</p>
+
+        <div class="quiz-container" id="quiz-module2">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。contract 是共享数据边界；同步 client、server 和测试，才能让发送方与接收方继续说同一种语言。"
+               data-explanation-wrong="还差一步。只改接收逻辑会让调用双方对字段理解不一致；根依赖也不负责请求形状。">
+            <h3 class="quiz-question">1. sam3 要新增可选字段 crop_mode，而且旧调用仍要工作。你会怎样给 AI 划定范围？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>只在 runtimes/sam3/server.py 临时读取这个字段</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>先改 sam3/contract.py，并联查 client、server、examples 与 tests 的兼容性</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把 crop_mode 加进根 pyproject.toml</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="正是如此。硬件与模型依赖属于那一间 runtime；同步它自己的说明和锁定版本，同时守住根 SDK 的轻量边界。"
+               data-explanation-wrong="这会把一项服务专属的重型要求扩散给所有客户端。CUDA / Torch 组合应留在对应 runtime。">
+            <h3 class="quiz-question">2. graspgen 在新 GPU 驱动上需要另一组 Torch / CUDA 版本，但普通客户端不该下载它们。最稳妥的改动是什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把 Torch 与 CUDA 加进根 pyproject.toml</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>改 endpoints.example.yaml 的端口</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>只更新 runtimes/graspgen 的依赖与前置条件，并同步它自己的锁定版本</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。本地部署地址是配置，不是服务身份。只有要改变仓库提供的示例默认值时，才改 endpoints.example.yaml。"
+               data-explanation-wrong="再想想‘服务是什么’和‘服务现在住哪里’的区别。registry 记录身份与默认启动资料，实际连接地址应由本地 endpoint 配置提供。">
+            <h3 class="quiz-question">3. 只有你的电脑需要把 graspgen 从本机改连到实验室服务器。应该怎样做？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>修改由 endpoints.example.yaml 复制出的本地配置，不改公共样例</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把远端地址写死进 graspgen/client.py</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>修改 registry.py 里的 runtime_dir</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。跨服务流程放 docs，读者有一个稳定入口；若还有某个 runtime 独有的注意事项，再从它的 README 或 PREREQUISITES 链过去。"
+               data-explanation-wrong="公共排错流程不该藏在某一个服务或测试 fixture 里。先放 docs，再为服务专属差异保留就近说明。">
+            <h3 class="quiz-question">4. 团队总结出一套所有服务都适用的“连接失败排查清单”，以后还会持续补充。放在哪里最合适？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>塞进 graspgen 的 backend.py 注释</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>在 docs/ 新建公共排错文档；服务特例再链接到各 runtime 说明</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>写进一个测试 fixture 的名字里</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('quiz-module2')">检查选择</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('quiz-module2')">再想一次</button>
+        </div>
+
+        <aside class="callout callout-accent">
+          <span class="callout-icon">🗺️</span>
+          <div>
+            <h3>带走这张路线卡</h3>
+            <p>数据形状 → contract；调用体验 → client；模型与 GPU → runtime；地址 → endpoint 配置；用法 → examples；保护与解释 → tests / docs。</p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="module" id="module-3" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">03</span>
+      <h1 class="module-title">一次调用，到底经过了什么？</h1>
+      <p class="module-subtitle">跟着一对图像，从你的代码一路走到 GPU，再带着视差结果回来。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">先把它想成一件挂号包裹</h2>
+        <p>
+          你只写下 <code>client.reconstruct(left, right)</code>，一对图像却要通过
+          <span class="term" data-definition="FastFS 是这个项目中的双目图像重建服务：它比较左右两张图，计算每个位置的视差。">FastFS</span>
+          <span class="term" data-definition="调用是让一段程序开始做事，例如执行 client.reconstruct。可以把它理解成按下一个有明确任务的按钮。">调用</span>，
+          跑到 <span class="term" data-definition="GPU 是擅长同时做大量数字计算的处理器，图像和 AI 模型常用它来加速。">GPU</span>，再变回
+          <span class="term" data-definition="NumPy 数组是 Python 中装数字的多维表格；图像通常是高 × 宽 × 颜色通道的数字表格。">NumPy 数组</span>。
+        </p>
+
+        <div class="flow-steps stagger-children" aria-label="挂号包裹与真实代码的对应关系">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">寄</div>
+            <p><strong><span class="term" data-definition="客户端是发起请求的一端。在这里，FastFSClient 先整理图像，再把请求交给网络层。">client</span></strong><br>检查并整理两张图</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">证</div>
+            <p><strong><span class="term" data-definition="contract 是客户端和服务端共同遵守的数据约定，写清楚请求与响应必须有哪些字段和类型。">contract</span></strong><br>像双方共认的包裹清单</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">封</div>
+            <p><strong><span class="term" data-definition="序列化是把程序里的对象变成适合存储或传输的字节；反序列化则把字节还原成对象。">serialization</span></strong><br>用 <span class="term" data-definition="MessagePack 是一种紧凑的二进制数据格式，作用类似 JSON，但传输时通常更省空间。">MessagePack</span> 封装</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">送</div>
+            <p><strong><span class="term" data-definition="HTTP 是客户端与服务端在网络上收发请求和响应的一套规则。">HTTP</span> <span class="term" data-definition="route 是服务端接收某类请求的地址和规则，像分拣中心里写着目的地的窗口。">route</span></strong><br>送到正确窗口</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">办</div>
+            <p><strong><span class="term" data-definition="handler 是收到特定请求后真正处理它的函数。route 负责接件，handler 负责办事。">server handler</span></strong><br>交给 <span class="term" data-definition="backend 是真正执行核心计算的后端层；在 FastFS 中，它负责运行视差推理。">backend</span> 计算</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">回</div>
+            <p><strong>typed response</strong><br>按同一份 contract 验收回执</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div>
+            <strong>Aha：contract 是双方共用的“兼容护照”</strong>
+            <p>
+              它的 <span class="term" data-definition="schema 是数据的结构说明书，规定字段名称、类型和必要条件。它让两端可以自动检查包裹是否合规。">schema</span>
+              同时约束请求和响应；任意一端偷偷换格式，护照检查就会暴露问题。
+            </p>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in" aria-label="HTTP 状态与排错方向">
+          <div class="badge-item">
+            <code class="badge-code">200</code>
+            <span class="badge-desc"><strong>已签收：</strong>请求处理成功，可以继续检查结果内容。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">422</code>
+            <span class="badge-desc"><strong>清单不合格：</strong>请求没通过 schema 检查，通常还没进入 handler。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">500</code>
+            <span class="badge-desc">
+              <strong>办理中出错：</strong>服务端内部失败，查看 handler 或 backend 日志。这里的数字叫
+              <span class="term" data-definition="状态码是 HTTP 响应里的三位数字，用来快速说明请求成功、输入有问题，还是服务端出错。">status code</span>。
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">让七个组件自己讲完这趟旅程</h2>
+        <p>点击“下一条”，看每个角色只做自己那一小段；没有谁单独完成整次重建。</p>
+
+        <div class="chat-window" id="chat-module-3-request-journey" aria-label="FastFS 请求旅程群聊">
+          <div class="chat-messages">
+            <div class="chat-message" data-msg="0" data-sender="user-code" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-1)">U</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-1)">User Code</span>
+                <p>FastFSClient，我给你 left 和 right，请帮我 reconstruct。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="1" data-sender="fastfs-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">FC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">FastFSClient</span>
+                <p>先交给 <code>_as_hwc3_u8</code>：我要确认两张图是 <span class="term" data-definition="HWC 是图像数组的排列方式：高度 Height、宽度 Width、颜色通道 Channel。HWC3 表示最后一维有 3 个颜色通道。">HWC3</span> 的 <span class="term" data-definition="uint8 是 0 到 255 的无符号 8 位整数类型，普通彩色图像常用它保存每个颜色值。">uint8</span>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="2" data-sender="contract" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-3)">C</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-3)">Contract</span>
+                <p>我把图像和参数装进 <code>ReconstructRequest</code>，字段与 <span class="term" data-definition="dtype 是数组中每个数字的数据类型，例如 uint8 或 float32。类型不同，会影响范围、精度和占用空间。">dtype</span> 都要符合约定。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="3" data-sender="base-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">BC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">BaseClient</span>
+                <p>我请 wire 打包成字节，再用 <span class="term" data-definition="POST 是一种 HTTP 请求方法，表示把一份数据交给服务端处理。">POST</span> 发往 reconstruct route。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="4" data-sender="fastapi-route" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-5)">FR</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-5)">FastAPI Route</span>
+                <p>我先验 request schema，再让 <span class="term" data-definition="线程池是一组可重复使用的工作线程。服务端把耗时任务交给空闲线程，避免接收请求的主流程一直被占住。">thread pool</span> 里的 worker 调用 handler。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="5" data-sender="fastfs-server" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-6)">FS</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-6)">FastFSServer</span>
+                <p>我收到 <code>ReconstructRequest</code>。真实模式交给 backend；fake 模式就直接造一张全零结果。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="6" data-sender="backend" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-7)">B</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-7)">Backend</span>
+                <p>我在 GPU 上 infer，算出 <span class="term" data-definition="视差是同一个物体在左右图像中的水平位置差。通常视差越大，物体越靠近相机。">disparity</span>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="7" data-sender="fastfs-server" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-6)">FS</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-6)">FastFSServer</span>
+                <p>收到，我把 disparity 装进 <code>ReconstructResponse</code>。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="8" data-sender="base-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-4)">BC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-4)">BaseClient</span>
+                <p>响应字节已拆包，也通过 <code>ReconstructResponse</code> 检查。</p>
+              </div>
+            </div>
+            <div class="chat-message" data-msg="9" data-sender="fastfs-client" style="display:none">
+              <div class="chat-avatar" style="background: var(--color-actor-2)">FC</div>
+              <div class="chat-bubble">
+                <span class="chat-sender" style="color: var(--color-actor-2)">FastFSClient</span>
+                <p>User Code，这是你要的 NumPy disparity 数组。签收完成！</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-typing" style="display:none">
+            <div class="chat-avatar" id="chat-module-3-request-journey-typing-avatar">?</div>
+            <div class="chat-typing-dots">
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+              <span class="typing-dot"></span>
+            </div>
+          </div>
+
+          <div class="chat-controls">
+            <button class="btn chat-next-btn">下一条</button>
+            <button class="btn chat-all-btn">播放全部</button>
+            <button class="btn chat-reset-btn">重新播放</button>
+            <span class="chat-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">同一趟旅程，换成数据的视角</h2>
+        <p>点击“下一站”，观察内容不变、外包装不断变化：对象变字节，字节再变回有类型的对象。</p>
+
+        <div class="flow-animation" id="flow-module-3-request-journey" aria-label="FastFS 端到端数据流" data-steps='[
+          {"highlight":"flow-m3-actor-1","label":"左右两张 NumPy 图像进入客户端"},
+          {"highlight":"flow-m3-actor-2","label":"客户端创建 ReconstructRequest","packet":true,"from":"m3-actor-1","to":"m3-actor-2"},
+          {"highlight":"flow-m3-actor-3","label":"wire 把请求序列化为 MessagePack 字节","packet":true,"from":"m3-actor-2","to":"m3-actor-3"},
+          {"highlight":"flow-m3-actor-4","label":"BaseClient 把字节 POST 到 reconstruct route","packet":true,"from":"m3-actor-3","to":"m3-actor-4"},
+          {"highlight":"flow-m3-actor-5","label":"route 验证后把任务交给 thread pool worker","packet":true,"from":"m3-actor-4","to":"m3-actor-5"},
+          {"highlight":"flow-m3-actor-6","label":"FastFSServer 调用 backend 进行推理","packet":true,"from":"m3-actor-5","to":"m3-actor-6"},
+          {"highlight":"flow-m3-actor-7","label":"视差被装入 ReconstructResponse","packet":true,"from":"m3-actor-6","to":"m3-actor-7"},
+          {"highlight":"flow-m3-actor-8","label":"响应模型被序列化为 MessagePack 字节","packet":true,"from":"m3-actor-7","to":"m3-actor-8"},
+          {"highlight":"flow-m3-actor-9","label":"客户端拆包并返回有类型的响应","packet":true,"from":"m3-actor-8","to":"m3-actor-9"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-m3-actor-1">
+              <div class="flow-actor-icon">🖼️</div>
+              <span>image array</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-2">
+              <div class="flow-actor-icon">📋</div>
+              <span><span class="term" data-definition="请求模型是按 schema 组织好的请求对象；它把图像和参数放进固定字段。">request model</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-3">
+              <div class="flow-actor-icon">📦</div>
+              <span><span class="term" data-definition="bytes 是原始字节序列，也是网络传输数据时看到的形式。程序需要先序列化，才能把复杂对象变成字节。">request bytes</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-4">
+              <div class="flow-actor-icon">🌐</div>
+              <span>POST route</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-5">
+              <div class="flow-actor-icon">🧵</div>
+              <span><span class="term" data-definition="worker 是执行具体任务的工作单元。这里它在线程池中运行服务端 handler。">worker</span></span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-6">
+              <div class="flow-actor-icon">⚙️</div>
+              <span>backend</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-7">
+              <div class="flow-actor-icon">✅</div>
+              <span>response model</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-8">
+              <div class="flow-actor-icon">📦</div>
+              <span>response bytes</span>
+            </div>
+            <div class="flow-actor" id="flow-m3-actor-9">
+              <div class="flow-actor-icon">🎁</div>
+              <span><span class="term" data-definition="typed response 是已经按响应 schema 检查并还原的对象，调用方可以放心读取规定好的字段。">typed response</span></span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-m3-packet"></div>
+          <div class="flow-step-label" id="flow-m3-label">点击“下一站”开始追踪</div>
+
+          <div class="flow-controls">
+            <button class="btn flow-next-btn">下一站</button>
+            <button class="btn flow-reset-btn">从头开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="callout callout-info animate-in">
+          <div class="callout-icon">🔎</div>
+          <div>
+            <strong>排错时，先问“包裹走到哪一站了？”</strong>
+            <p>没发出就看 client；422 看 request contract；500 看 handler 与 backend；成功返回却无法读取，就对照 response contract。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">真实代码：寄件端先整理，再封箱</h2>
+        <p>左边是项目原码，右边把每一次交接翻译成日常语言。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · client.py</span>
+            <pre><code><span class="code-line">req <span class="code-operator">=</span> <span class="code-function">ReconstructRequest</span>(</span>
+<span class="code-line">    left<span class="code-operator">=</span><span class="code-function">_as_hwc3_u8</span>(left),</span>
+<span class="code-line">    right<span class="code-operator">=</span><span class="code-function">_as_hwc3_u8</span>(right),</span>
+<span class="code-line">    valid_iters<span class="code-operator">=</span>valid_iters,</span>
+<span class="code-line">    max_disp<span class="code-operator">=</span>max_disp,</span>
+<span class="code-line">)</span>
+<span class="code-line"><span class="code-keyword">return</span> self.<span class="code-function">_request</span>(req, ReconstructResponse)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">新建一张名为 <code>ReconstructRequest</code> 的寄件单。</p>
+              <p class="tl">左图先被整理成 HWC3、uint8 的统一格式。</p>
+              <p class="tl">右图也执行完全相同的本地整理。</p>
+              <p class="tl">把有效迭代次数原样写进寄件单。</p>
+              <p class="tl">把最大视差限制也写进去。</p>
+              <p class="tl">请求模型装填完成。</p>
+              <p class="tl">发送请求，并指定回件必须能还原成 <code>ReconstructResponse</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · wire.py</span>
+            <pre><code><span class="code-line"><span class="code-keyword">def</span> <span class="code-function">pack</span>(payload: object) -&gt; bytes:</span>
+<span class="code-line">    <span class="code-keyword">return</span> msgpack.<span class="code-function">packb</span>(payload, default=msgpack_numpy.encode, use_bin_type=<span class="code-keyword">True</span>)</span>
+<span class="code-line"></span>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">unpack</span>(raw: bytes) -&gt; object:</span>
+<span class="code-line">    <span class="code-keyword">return</span> msgpack.<span class="code-function">unpackb</span>(raw, object_hook=msgpack_numpy.decode, raw=<span class="code-keyword">False</span>)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义 <code>pack</code>：输入一个 <span class="term" data-definition="payload 是一次请求或响应真正携带的数据内容，像包裹盒里的物品。">payload</span> 对象，输出字节。</p>
+              <p class="tl">MessagePack 负责封箱；<span class="term" data-definition="msgpack_numpy 是 MessagePack 的 NumPy 转换助手，让数组能被编码成字节并在另一端恢复。">msgpack_numpy</span> 专门处理 NumPy 数据。</p>
+              <p class="tl">两种方向在这里对称相遇。</p>
+              <p class="tl">定义 <code>unpack</code>：输入原始字节，输出对象。</p>
+              <p class="tl">MessagePack 负责拆箱；NumPy 解码助手把数组恢复回来。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">真实代码：收件端只处理自己的那一棒</h2>
+        <p><code>FastFSServer</code> 不负责网络封箱；它接到合格请求后，决定走假结果还是调用真实 backend。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · server.py</span>
+            <pre><code><span class="code-line">@<span class="code-function">handler</span>(ReconstructRequest)</span>
+<span class="code-line"><span class="code-keyword">def</span> <span class="code-function">reconstruct</span>(self, req: ReconstructRequest) -&gt; ReconstructResponse:</span>
+<span class="code-line">    <span class="code-keyword">if</span> self._fake:</span>
+<span class="code-line">        H, W <span class="code-operator">=</span> req.left.shape[:<span class="code-number">2</span>]</span>
+<span class="code-line">        <span class="code-keyword">return</span> <span class="code-function">ReconstructResponse</span>(disparity=np.<span class="code-function">zeros</span>((H, W), dtype=np.float32))</span>
+<span class="code-line"></span>
+<span class="code-line">    disp, _timings <span class="code-operator">=</span> self.backend.<span class="code-function">infer</span>(</span>
+<span class="code-line">        req.left,</span>
+<span class="code-line">        req.right,</span>
+<span class="code-line">        valid_iters=req.valid_iters,</span>
+<span class="code-line">        max_disp=req.max_disp,</span>
+<span class="code-line">    )</span>
+<span class="code-line">    <span class="code-keyword">return</span> <span class="code-function">ReconstructResponse</span>(disparity=disp)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl"><span class="term" data-definition="装饰器是写在函数上方的 @ 标记，用来给函数登记额外规则；这里它声明该函数处理 ReconstructRequest。">装饰器</span>把这类请求登记给这个 handler。</p>
+              <p class="tl">定义 reconstruct：收请求，承诺返回 <code>ReconstructResponse</code>。</p>
+              <p class="tl">如果开启 <span class="term" data-definition="fake 模式跳过真实模型，用可预测的假结果测试其余链路是否通畅。它很适合把网络问题和模型问题分开。">fake 模式</span>……</p>
+              <p class="tl">先读出左图的高度 H 和宽度 W。</p>
+              <p class="tl">直接返回一张 H × W 的全零 <span class="term" data-definition="float32 是 32 位浮点数类型，能保存小数；视差结果通常用它表示。">float32</span> 视差图。</p>
+              <p class="tl">否则进入真实计算路径。</p>
+              <p class="tl">调用 backend 的 <span class="term" data-definition="infer 是 inference 的缩写，意思是让已准备好的模型根据输入计算结果。">infer</span>，接收视差和计时信息。</p>
+              <p class="tl">把左图交给 backend。</p>
+              <p class="tl">把右图也交给 backend。</p>
+              <p class="tl">传入请求中约定的迭代次数。</p>
+              <p class="tl">传入请求中约定的最大视差。</p>
+              <p class="tl">backend 调用结束。</p>
+              <p class="tl">最后仍按 contract 包成响应模型，不把裸数组直接扔回去。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🧭</div>
+          <div>
+            <strong>边界越清楚，故障范围越小</strong>
+            <p>client 管输入，contract 管格式，wire 管字节，route 管接入，handler 管协调，backend 管计算。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">现在轮到你：包裹卡在哪一站？</h2>
+        <p>四个新故障都发生在不同边界。选择最先该检查的位置，再看解释。</p>
+
+        <div class="quiz-container" id="quiz-module-3-request-journey">
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。网络还没发出就失败，先检查 FastFSClient 的输入整理，特别是 _as_hwc3_u8 对形状和 dtype 的处理。"
+               data-explanation-wrong="还没到网络、route 或 backend。先从最后一个确实运行过的边界查起，也就是客户端输入整理。">
+            <h3 class="quiz-question">1. 左图是 <code>float64</code>，调用在发出 HTTP 请求前就报告形状或转换错误。第一站查哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>FastFSClient</code> 的 <code>_as_hwc3_u8</code></span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>FastAPI route 的 500 日志</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>GPU 上的 backend 输出</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。422 通常说明请求先被 schema 拒绝，handler 还没有拿到这个包裹。"
+               data-explanation-wrong="422 的关键信号是输入没有通过 schema 验证。先对照 ReconstructRequest，而不是直接怀疑 GPU。">
+            <h3 class="quiz-question">2. 请求收到 <code>422</code>，而 <code>FastFSServer.reconstruct</code> 的第一行日志从未出现。最合理的判断是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>backend 已经算出错误视差</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>请求字段或类型没通过 <code>ReconstructRequest</code> schema</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>客户端没能拆开响应字节</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="对。请求已进入真实计算路径，500 又指向服务端内部失败；应把 handler 日志与 backend.infer 的异常连起来看。"
+               data-explanation-wrong="请求已经通过输入和 schema 阶段。此时优先查服务端 handler 调用 backend 的位置，能最快缩小范围。">
+            <h3 class="quiz-question">3. 请求通过验证，但真实模式返回 <code>500</code>；日志停在调用 <code>backend.infer</code> 之后。下一步最有效的是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>重新检查调用者变量名有没有拼错</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>只检查 MessagePack 是否压缩得足够小</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>查看 handler 与 <code>backend.infer</code> 的异常和输入参数</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。网络往返已经成功，失败发生在响应边界；比较 backend 的 disp 与 ReconstructResponse 对 disparity 的 dtype 约定最直接。"
+               data-explanation-wrong="成功收到字节说明寄送链路基本通了。现在应检查响应内容是否符合双方共用的 contract。">
+            <h3 class="quiz-question">4. HTTP 已成功返回，拆包后却提示 <code>disparity</code> 的 dtype 与响应约定不符。优先比较哪两处？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span><code>backend</code> 产出的 <code>disp</code> 与 <code>ReconstructResponse</code> contract</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>输入图像文件名与 POST route 名称</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>thread pool 大小与 GPU 风扇转速</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('quiz-module-3-request-journey')">检查思路</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('quiz-module-3-request-journey')">重新思考</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🏁</div>
+          <div>
+            <strong>你现在拥有一张端到端排错地图</strong>
+            <p>下一模块会继续追踪：server 和 backend 是怎样被启动、准备好并保持可运行的。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="module" id="module-4" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h1 class="module-title">Fake 到 Real：一套 Runtime 的一生</h1>
+      <p class="module-subtitle">先在模拟器里跑通赛道，再为真实赛车装发动机、燃料与轮胎。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">为什么 sync 后 fake 能跑，real 却还不能？</h2>
+        <p>每个服务的 <span class="term" data-definition="runtime 是某项服务运行所需的一整套目录、环境和脚本；可以把它看成一辆赛车自己的维修区。">runtime</span> 有 light 与 real 两份锁定项目，却共用一个 <span class="term" data-definition="venv 是 Python 的独立虚拟环境；它把这个 runtime 的软件包与电脑上的其他项目隔开。">venv</span>。<span class="term" data-definition="uv 是负责安装、锁定并运行 Python 项目的工具；这里 sync 会把共享 venv 精确变成 lockfile 规定的样子。">uv</span> <code>sync</code> 只把“模拟赛车”准备好，真实模型还缺额外装备。</p>
+
+        <div class="pattern-cards stagger-children">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">0</div>
+            <h4 class="pattern-title">只有源码</h4>
+            <p class="pattern-desc">目录已经在，但共享 venv 还没被精确同步。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">1</div>
+            <h4 class="pattern-title">sync → LIGHT READY</h4>
+            <p class="pattern-desc"><span class="term" data-definition="lockfile 是记录每个软件包精确版本的锁定文件；它像统一配件清单，让不同电脑装出同一套环境。">lockfile</span> 对应的轻量环境就绪，fake 可以启动。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">2</div>
+            <h4 class="pattern-title">install + download → REAL READY</h4>
+            <p class="pattern-desc">真实<span class="term" data-definition="依赖是程序运行前必须安装的其他软件包；真实模型通常比 fake 多出 GPU、编译和模型相关依赖。">依赖</span>与模型文件齐全，检车贴也与当前锁一致。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">↺</div>
+            <h4 class="pattern-title">再次 sync → 回到 LIGHT</h4>
+            <p class="pattern-desc">sync 会先撕掉 <span class="term" data-definition="marker/hash 是证明真实环境与当前 lockfile 匹配的标记和指纹；像检车贴上写着这辆车、这套配置和检查日期。">marker/hash</span>，避免把已变化的 venv 误认成 real。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning animate-in">
+          <div class="callout-icon">🏁</div>
+          <div class="callout-content">
+            <strong class="callout-title">fake 只验证“方向盘和赛道”</strong>
+            <p><span class="term" data-definition="fake 模式用轻量假结果代替真实模型计算；它能验证配置、启动和请求链路，但不能评价真实模型效果。">fake</span> 成功说明链路连通，不代表真实模型质量、速度或显存占用已经通过。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">切开看：两份项目，共用一个 venv</h2>
+        <p><code>services.yaml</code> 中的<span class="term" data-definition="profile 是一次运行所选择的服务和参数集合；它是安装边界，没有选中的服务不会被顺手安装。">配置档</span>决定哪些 runtime 能进入赛道。点击三个图层，看 light、real 与共享环境各自装着什么。</p>
+
+        <div class="layer-demo animate-in">
+          <div class="layer-tabs">
+            <button class="layer-tab active" type="button" onclick="showLayer('m4-layer-light', this)">LIGHT 项目</button>
+            <button class="layer-tab" type="button" onclick="showLayer('m4-layer-real', this)">REAL 项目</button>
+            <button class="layer-tab" type="button" onclick="showLayer('m4-layer-shared', this)">共享 .venv</button>
+          </div>
+
+          <div class="layer-viewport">
+            <div class="layer" id="m4-layer-light" style="display:block">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">📄</div>
+                  <h4 class="pattern-title">light pyproject</h4>
+                  <p class="pattern-desc">只声明启动 fake 与公共工具所需的轻量包。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">🔒</div>
+                  <h4 class="pattern-title">light uv.lock</h4>
+                  <p class="pattern-desc">把轻量环境的精确版本锁住，供 <code>sync --locked</code> 使用。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">🕹️</div>
+                  <h4 class="pattern-title">fake server branch</h4>
+                  <p class="pattern-desc">server 直接返回可预测的假结果，不导入真实 backend，只验证请求链路。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="layer" id="m4-layer-real" style="display:none">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🧰</div>
+                  <h4 class="pattern-title">real project + scripts</h4>
+                  <p class="pattern-desc">安装真实依赖，运行安装、下载与检查脚本。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🔗</div>
+                  <h4 class="pattern-title"><span class="term" data-definition="upstream 是 robot-tools 依赖的外部原始项目；services.yaml 没选中的服务，不应拉取它的上游代码。">upstream</span> / <span class="term" data-definition="submodule 是主仓库记录的另一个仓库引用；像需要时才取来的可选零件箱。">submodule</span></h4>
+                  <p class="pattern-desc">只为选中的真实服务准备外部源码。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🧠</div>
+                  <h4 class="pattern-title"><span class="term" data-definition="checkpoint 是模型训练后保存的参数文件，也常叫模型权重；它通常体积很大，需要单独下载。">checkpoint</span></h4>
+                  <p class="pattern-desc">真实推理要读取的模型文件，不会由 light sync 自动下载。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="layer" id="m4-layer-shared" style="display:none">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🏎️</div>
+                  <h4 class="pattern-title">一套共享 .venv</h4>
+                  <p class="pattern-desc">light 与 real 不各养一套环境；后一次精确同步会改变同一辆车。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🏷️</div>
+                  <h4 class="pattern-title">real marker</h4>
+                  <p class="pattern-desc">只有真实安装与当前锁匹配时，检车贴才可信。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🩺</div>
+                  <h4 class="pattern-title">doctor preflight</h4>
+                  <p class="pattern-desc">真实启动前由你主动运行；它读取环境状态并报告贴纸缺失或过期，launch 本身不会代跑 doctor。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="layer-description" id="m4-layer-desc">LIGHT 项目只保证假服务能跑；切换上方按钮查看真实装备与共享环境。</p>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">维修区地图：八类文件各管一件事</h2>
+        <p>名字很多，但职责并不乱。把故障现象对准负责的文件，比重复运行所有命令更快。</p>
+
+        <div class="pattern-cards stagger-children">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">📋</div>
+            <h4 class="pattern-title"><code>pyproject.toml</code></h4>
+            <p class="pattern-desc">声明项目、依赖与可选 extras，回答“要装哪些包”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🔒</div>
+            <h4 class="pattern-title"><code>uv.lock</code></h4>
+            <p class="pattern-desc">锁住精确版本，回答“每个包究竟装哪一版”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🔧</div>
+            <h4 class="pattern-title"><code>install.sh</code></h4>
+            <p class="pattern-desc">准备真实源码、系统构建与服务专属依赖；应尽量<span class="term" data-definition="幂等表示同一个操作重复执行，最终状态仍然一致；和 AI 协作时可以说“让安装脚本保持幂等”。">幂等</span>，方便失败后重跑。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">⬇️</div>
+            <h4 class="pattern-title"><code>download.sh</code></h4>
+            <p class="pattern-desc">下载 checkpoint 等大文件，回答“模型文件到齐了吗”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🩺</div>
+            <h4 class="pattern-title"><code>doctor.py</code></h4>
+            <p class="pattern-desc">进行<span class="term" data-definition="只读检查只查看并报告状态，不主动修改文件或安装软件；适合先收集证据再决定修复方式。">只读检查</span>，把缺包、缺权重或标记问题说清楚。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-info)">
+            <div class="pattern-icon" style="background: var(--color-info)">🌐</div>
+            <h4 class="pattern-title"><code>upstream/</code></h4>
+            <p class="pattern-desc">放外部项目源码，只初始化 profile 选中的服务。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-accent)">
+            <div class="pattern-icon" style="background: var(--color-accent)">🩹</div>
+            <h4 class="pattern-title"><code>compat/</code></h4>
+            <p class="pattern-desc">保存<span class="term" data-definition="兼容补丁是为了解决版本或平台差异而做的小范围修改；像给不完全合尺寸的零件加转接片。">兼容补丁</span>，让上游代码适配当前设备和依赖。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">⚠️</div>
+            <h4 class="pattern-title"><code><span class="term" data-definition="PREREQUISITES 是运行前要由人准备的前置条件清单，例如驱动、编译器或系统库。">PREREQUISITES</span></code></h4>
+            <p class="pattern-desc">列出脚本无法替你解决的系统、硬件或驱动要求。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">sync 会主动撕掉旧检车贴</h2>
+        <p>light 与 real 共用 venv，所以“曾经 install 成功”不能永久作数。代码先清除 real marker，再按当前 lock 精确同步；就算同步中途失败，也不会留下虚假的“可跑 real”状态。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def _sync_one(spec: ServiceRuntimeSpec, extras: list[str]) -&gt; None:</span>
+<span class="code-line">    # The lightweight and real projects intentionally share one .venv. Clear</span>
+<span class="code-line">    # the real marker before exact sync starts because even a failed sync may</span>
+<span class="code-line">    # have partially removed real-only packages.</span>
+<span class="code-line">    clear_real_install(spec.runtime_dir)</span>
+<span class="code-line">    cmd = ["uv", "sync", "--locked"]</span>
+<span class="code-line">    for e in extras:</span>
+<span class="code-line">        cmd.extend(["--extra", e])</span>
+<span class="code-line">    extras_str = " ".join(f"--extra {e}" for e in extras) or "(no extras)"</span>
+<span class="code-line">    logger.info("[sync] %s: uv sync --locked %s (cwd=%s)", spec.service_id, extras_str, spec.runtime_dir)</span>
+<span class="code-line">    env = os.environ.copy()</span>
+<span class="code-line">    env.pop("VIRTUAL_ENV", None)</span>
+<span class="code-line">    subprocess.run(cmd, cwd=spec.runtime_dir, env=env, check=True)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">这个<span class="term" data-definition="函数是一段可以按名字调用的操作；_sync_one 负责把一个服务 runtime 同步到精确状态。">函数</span>接收一项服务规格和可选 extras。</p>
+              <p class="tl">注释说明 light 与 real 故意共用一套 venv。</p>
+              <p class="tl">即使 sync 失败，也可能已经删掉一部分 real 专用包。</p>
+              <p class="tl">因此第一步就清除 real 检车贴，绝不让旧状态冒充成功。</p>
+              <p class="tl">准备 <code>uv sync --locked</code>，要求严格服从锁定版本。</p>
+              <p class="tl">把 profile 选中的每个 extra 加入命令。</p>
+              <p class="tl">把 extras 整理成可读文字，方便日志说明这次同步了什么。</p>
+              <p class="tl">记录服务、extras 与工作目录，排错时能还原现场。</p>
+              <p class="tl">复制<span class="term" data-definition="环境变量是操作系统传给程序的名称和值；它们会影响程序在哪里寻找工具和环境。">环境变量</span>，再移除外部 <code>VIRTUAL_ENV</code> 干扰。</p>
+              <p class="tl">在当前 runtime 目录执行命令；只要失败就立即报告。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="screen-subheading">install 也只服从选择边界</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def install(config_path: Path) -&gt; None:</span>
+<span class="code-line">    """Initialize and install only the service runtimes selected by a profile."""</span>
+<span class="code-line">    for spec, svc in _parse_services(config_path):</span>
+<span class="code-line">        _init_upstream(spec)</span>
+<span class="code-line">        _sync_one(spec, svc.extras)</span>
+<span class="code-line">        _run_runtime_script(spec, "install.sh")</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><code>install</code> 接收配置路径，目标写得很清楚：只安装 profile 选中的 runtime。</p>
+              <p class="tl">逐项读取 <code>services.yaml</code> 里真正选中的服务。</p>
+              <p class="tl">只为这一项初始化上游，再把共享 venv 精确同步。</p>
+              <p class="tl">最后运行这一项自己的 <code>install.sh</code>，没有入选的服务不会经过这里。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">doctor 是启动前体检：贴纸不对就先别发车</h2>
+        <p>真实启动前，应主动运行 <span class="term" data-definition="doctor 是一组只读诊断检查；它像赛前验车员，只报告缺少什么，不替你偷偷改装。">doctor</span>，确认 marker 属于当前锁定环境。marker 不存在时，它返回可操作的诊断，而不是把 light 环境当成 real；当前 launch 不会自动替你执行这项体检。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def validate_real_install(runtime_dir: str | Path) -&gt; str | None:</span>
+<span class="code-line">    """Return a diagnostic when the venv is not marked for the current lock."""</span>
+<span class="code-line">    runtime_dir = Path(runtime_dir).resolve()</span>
+<span class="code-line">    marker = real_install_marker(runtime_dir)</span>
+<span class="code-line">    if not marker.is_file():</span>
+<span class="code-line">        return "real environment is not installed (run install)"</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">检查指定 runtime 的 real 安装状态；正常时没有诊断文字。</p>
+              <p class="tl">先把目录变成明确的<span class="term" data-definition="绝对路径是从磁盘根位置开始写出的完整地址；它避免同一目录因相对写法不同而被认错。">绝对路径</span>。</p>
+              <p class="tl">计算这个 runtime 应该拥有的 marker 位置。</p>
+              <p class="tl">如果 marker 文件不存在，就明确告诉你先运行 <code>install</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="screen-subheading">点击追踪：同一份选择，分成两条路线</h3>
+        <div class="flow-animation animate-in" id="m4-runtime-flow" data-steps='[
+          {"highlight":"flow-actor-m4-profile","label":"1. services.yaml 选出本次允许处理的 runtime"},
+          {"highlight":"flow-actor-m4-light","label":"2. LIGHT 路线：sync 按轻量 lock 精确准备共享 venv","packet":true,"from":"actor-m4-profile","to":"actor-m4-light"},
+          {"highlight":"flow-actor-m4-fake","label":"3. fake launch：验证配置、端口与请求链路，不验证模型质量","packet":true,"from":"actor-m4-light","to":"actor-m4-fake"},
+          {"highlight":"flow-actor-m4-profile","label":"4. 需要真实模型时，回到同一份选择边界","packet":true,"from":"actor-m4-fake","to":"actor-m4-profile"},
+          {"highlight":"flow-actor-m4-install","label":"5. REAL 路线：install 初始化选中 upstream、同步并运行安装脚本","packet":true,"from":"actor-m4-profile","to":"actor-m4-install"},
+          {"highlight":"flow-actor-m4-download","label":"6. download 只取得选中服务的 checkpoint","packet":true,"from":"actor-m4-install","to":"actor-m4-download"},
+          {"highlight":"flow-actor-m4-doctor","label":"7. doctor 只读检查依赖、模型文件与 marker","packet":true,"from":"actor-m4-download","to":"actor-m4-doctor"},
+          {"highlight":"flow-actor-m4-real","label":"8. 检查通过后，real launch 才进入真实推理","packet":true,"from":"actor-m4-doctor","to":"actor-m4-real"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-actor-m4-profile"><div class="flow-actor-icon">🎟️</div><span>选中 profile</span></div>
+            <div class="flow-actor" id="flow-actor-m4-light"><div class="flow-actor-icon">🔒</div><span>light sync</span></div>
+            <div class="flow-actor" id="flow-actor-m4-fake"><div class="flow-actor-icon">🕹️</div><span>fake launch</span></div>
+            <div class="flow-actor" id="flow-actor-m4-install"><div class="flow-actor-icon">🔧</div><span>install</span></div>
+            <div class="flow-actor" id="flow-actor-m4-download"><div class="flow-actor-icon">⬇️</div><span>download</span></div>
+            <div class="flow-actor" id="flow-actor-m4-doctor"><div class="flow-actor-icon">🩺</div><span>doctor</span></div>
+            <div class="flow-actor" id="flow-actor-m4-real"><div class="flow-actor-icon">🏎️</div><span>real launch</span></div>
+          </div>
+          <div class="flow-packet" id="m4-flow-packet"></div>
+          <div class="flow-step-label" id="m4-flow-label">点击“下一步”选择一条运行路线</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">赛道突发状况：你会怎么处理？</h2>
+        <p>下面不考文件名背诵，只考怎样根据状态缩小问题。选好后一次查看每道题的解释。</p>
+
+        <div class="quiz-container" id="m4-quiz-runtime">
+          <div class="quiz-question-block"
+               data-correct="m4-q1-b"
+               data-explanation-right="正是这样：sync 会先清除 real marker，并可能移除 real 专用包。要跑 real，应重新 install，再让 doctor 确认当前状态。"
+               data-explanation-wrong="再看共享 venv 的关键：sync 改的是同一套环境，而且会主动撕掉旧 marker，所以过去的 install 不能继续当通行证。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 1 · install 后又 sync</span><p>昨天 real 模型能跑，今天为了测试 fake 又执行了 sync。现在想切回 real，最稳妥的下一步是什么？</p></div>
+              <h3 class="quiz-question">你会选择哪条恢复路线？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q1-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>旧 marker 应该还有效，直接 real launch</span></button>
+                <button class="quiz-option" data-value="m4-q1-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新运行所选服务的 install，再用 doctor 检查后启动</span></button>
+                <button class="quiz-option" data-value="m4-q1-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>删除 services.yaml，让程序自动猜服务</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q2-c"
+               data-explanation-right="对：fake 不读取真实 checkpoint，所以它成功并不能排除缺权重。为选中服务执行 download，再让 doctor 检查最有针对性。"
+               data-explanation-wrong="别被 fake 成功误导：它只证明请求链路。真实模型特有的大文件由 download 准备，缺少时应沿这条支线处理。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 2 · 缺少模型权重</span><p>fake 调用一直成功，real 启动却报告找不到 checkpoint；代码和 Python 包都已安装。</p></div>
+              <h3 class="quiz-question">哪个动作最对症？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q2-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>继续 sync light 环境，直到报错消失</span></button>
+                <button class="quiz-option" data-value="m4-q2-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>因为 fake 成功，所以忽略权重报错直接启动</span></button>
+                <button class="quiz-option" data-value="m4-q2-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>为选中服务运行 download，再用 doctor 验证文件</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q3-a"
+               data-explanation-right="没错：services.yaml 就是选择边界。install 遍历解析出来的选中服务，只初始化它们的 upstream 并运行各自脚本。"
+               data-explanation-wrong="目标是控制成本，而不是把所有服务都准备好。让 profile 只列出两项，install 的遍历自然就停在这两项。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 3 · 机器只需要两个服务</span><p>仓库支持很多模型，但这台工作站只会运行其中两个，你也不想下载其他 upstream。</p></div>
+              <h3 class="quiz-question">怎样把安装范围锁住？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q3-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span><code>services.yaml</code> 只列这两个服务，再对它运行 install 和 download</span></button>
+                <button class="quiz-option" data-value="m4-q3-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先安装所有服务，再手工删除不需要的目录</span></button>
+                <button class="quiz-option" data-value="m4-q3-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>把所有服务都设成同一个端口</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q4-b"
+               data-explanation-right="很好：移动目录后先让 doctor 根据新位置和当前 lock 重新判断，不要凭旧成功记录猜测。若 marker 无效，就重新 install，并按需 download。"
+               data-explanation-wrong="文件夹移动后，最可靠的是检查新位置的实际状态。doctor 是只读入口；它报告 marker 或 lock 不匹配时，再做有针对性的安装。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 4 · runtime 文件夹搬家</span><p>你把 runtime 目录迁到新磁盘，记得它以前安装成功，但不确定 marker 和当前 lock 是否仍可信。</p></div>
+              <h3 class="quiz-question">第一步应该做什么？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q4-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>相信旧记录，跳过所有检查直接 real launch</span></button>
+                <button class="quiz-option" data-value="m4-q4-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>在新位置运行 doctor；若 marker 无效，再重新 install</span></button>
+                <button class="quiz-option" data-value="m4-q4-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>只改文件夹名字，让 marker 自动变新</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('m4-quiz-runtime')">查看每题解释</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('m4-quiz-runtime')">重新判断</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">一条可靠的运行原则</strong>
+            <p>profile 管范围，lock 管版本，marker 管可信状态；fake 验链路，doctor 验真实环境。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="module" id="module-5" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">05</span>
+      <h1 class="module-title">亲手增加一个新 Service</h1>
+      <p class="module-subtitle">用一套可检查的施工顺序，把 foo 视觉模型接成官方扩展包。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in" aria-labelledby="module5-screen-1">
+        <h2 class="screen-heading" id="module5-screen-1">先固定积木接口，再装机器</h2>
+        <p>假设明天要接入一个名为 foo 的新视觉模型。这里的 <span class="term" data-definition="Service（服务）是能独立启动、通过约定接口接收请求并返回结果的程序单元。">Service</span> 不是“复制一个目录再改名字”，而是一条从接口到验收的施工线。</p>
+
+        <div class="flow-animation" id="m5-flow-service-build" data-steps='[
+          {"highlight":"flow-m5-actor-1","label":"第 1 步：固定上游源码版本，先知道模型从哪里来"},
+          {"highlight":"flow-m5-actor-2","label":"第 2 步：先定义 foo 的身份、动作、请求与响应","packet":true,"from":"m5-actor-1","to":"m5-actor-2"},
+          {"highlight":"flow-m5-actor-3","label":"第 3 步：client 声明兼容版本，并从包入口导出","packet":true,"from":"m5-actor-2","to":"m5-actor-3"},
+          {"highlight":"flow-m5-actor-4","label":"第 4 步：runtime 安装重依赖，server 接线，backend 驱动真实模型","packet":true,"from":"m5-actor-3","to":"m5-actor-4"},
+          {"highlight":"flow-m5-actor-5","label":"第 5 步：registry 登记目录、启动命令和不冲突的端口","packet":true,"from":"m5-actor-4","to":"m5-actor-5"},
+          {"highlight":"flow-m5-actor-6","label":"第 6 步：补 endpoint 样例、使用示例与安装排错文档","packet":true,"from":"m5-actor-5","to":"m5-actor-6"},
+          {"highlight":"flow-m5-actor-7","label":"第 7 步：无 GPU 跑 fake 测试，有设备再跑 real probe","packet":true,"from":"m5-actor-6","to":"m5-actor-7"}
+        ]'>
+          <div class="flow-actors" aria-label="新增服务七步施工线">
+            <div class="flow-actor" id="flow-m5-actor-1">
+              <div class="flow-actor-icon">🧱</div>
+              <span>上游源码</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-2">
+              <div class="flow-actor-icon">📐</div>
+              <span>contract</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-3">
+              <div class="flow-actor-icon">🎛️</div>
+              <span>client / export</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-4">
+              <div class="flow-actor-icon">🏭</div>
+              <span>runtime</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-5">
+              <div class="flow-actor-icon">🗂️</div>
+              <span>registry</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-6">
+              <div class="flow-actor-icon">📝</div>
+              <span>配置 / 文档</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-7">
+              <div class="flow-actor-icon">✅</div>
+              <span>fake / real 验收</span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-m5-packet"></div>
+          <div class="flow-step-label" id="flow-m5-label">点击“下一步”，开始组装 foo</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">先 contract，后实现</strong>
+            <p><span class="term" data-definition="contract 是调用双方共同遵守的数据约定：服务叫什么、能做什么、请求和响应长什么样。">contract</span> 像积木接口尺寸。尺寸先稳定，<span class="term" data-definition="client 是主动发请求的一方；它把调用者的数据整理好，再送给远端服务。">client</span> 和 <span class="term" data-definition="server 是接收并处理请求的一方；它按 contract 分派工作，再返回响应。">server</span> 才能独立施工又准确扣合。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-2">
+        <h2 class="screen-heading" id="module5-screen-2">读懂一个已经接好的扩展包</h2>
+        <p>foo 还不存在，所以先把 fastfs 当作参照物。看清三处接缝：contract 定规则，client 声明自己听得懂，server 把规则接到实现。</p>
+
+        <h3>① contract：身份、动作与数据形状</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/services/fastfs/contract.py</span>
+            <pre><code>SERVICE_ID = "fastfs"
+API_VERSION = "1"
+ACTIONS = frozenset({"reconstruct"})
+
+class ReconstructRequest(BaseRequest):
+    action: Literal["reconstruct"] = "reconstruct"
+    left: np.ndarray  # (H, W, 3) uint8 or (H, W) gray; client coerces to HxWx3 uint8
+    right: np.ndarray  # same shape as left
+    # Per-call refinement knobs; None => use server's startup defaults.
+    valid_iters: int | None = None
+    max_disp: int | None = None
+
+class ReconstructResponse(BaseResponse):
+    disparity: np.ndarray  # (H, W) float32, in pixels — depth = K_fx * baseline / disp</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">服务身份证写着 fastfs；它说第 1 版<span class="term" data-definition="API 是两个程序约定好的沟通方式；API 版本说明当前使用的是哪一版约定。">API</span>，只接受 reconstruct 动作。</p>
+              <p class="tl">定义“重建请求”这种数据结构。</p>
+              <p class="tl"><span class="term" data-definition="Literal 表示一个值只能从写明的固定选项中选择。这里 action 只能是 reconstruct，不能随意拼写。">Literal</span> 把动作锁定为 reconstruct；调用者不能传别的词。</p>
+              <p class="tl">left 和 right 是左右图；client 会把灰度图整理成统一的三通道 <span class="term" data-definition="NumPy 数组是 Python 中存放多维数字数据的常用结构；图像常表示为高 × 宽 × 通道。">NumPy 数组</span>。</p>
+              <p class="tl">注释说明下面两个旋钮每次调用都能改；传 None 就使用服务启动时的默认值。</p>
+              <p class="tl">valid_iters 和 max_disp 都是可选整数。</p>
+              <p class="tl">响应只承诺返回 disparity 数组，并把尺寸、类型和单位写清楚。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>② client：公开兼容承诺</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/services/fastfs/client.py</span>
+            <pre><code>class FastFSClient(BaseClient):
+    SUPPORTED_SERVICE_APIS: ClassVar[dict[str, frozenset[str]]] = {SERVICE_ID: frozenset({API_VERSION})}
+    REQUIRED_ACTIONS = ACTIONS</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">FastFSClient 复用所有服务共有的基础 client 能力。</p>
+              <p class="tl">它公开声明“我支持 fastfs 的这一版 API”，并要求服务至少提供 contract 列出的全部动作。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>③ server：同一入口，<span class="term" data-definition="fake 模式不加载真实模型，而是返回形状正确的可预测结果，用来快速验证接线和 contract。">fake</span> 与 <span class="term" data-definition="real 模式会真正加载模型并执行推理，因此需要实际依赖、资源和硬件。">real</span> 两条路</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · runtimes/fastfs/server.py</span>
+            <pre><code>@handler(ReconstructRequest)
+def reconstruct(self, req: ReconstructRequest) -> ReconstructResponse:
+    if self._fake:
+        H, W = req.left.shape[:2]
+        return ReconstructResponse(disparity=np.zeros((H, W), dtype=np.float32))
+
+    disp, _timings = self.backend.infer(
+        req.left,
+        req.right,
+        valid_iters=req.valid_iters,
+        max_disp=req.max_disp,
+    )
+    return ReconstructResponse(disparity=disp)</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl"><span class="term" data-definition="装饰器（decorator）是在函数外面加一层标记或能力。这里的 @handler 表示：收到这种请求时，请调用下面这个函数。">装饰器</span>把 ReconstructRequest 接到 reconstruct 函数。</p>
+              <p class="tl">函数承诺：输入是重建请求，输出是重建响应。</p>
+              <p class="tl">fake 模式不加载真实模型，只按输入图片尺寸造一张全零结果。</p>
+              <p class="tl">这样普通开发机也能快速验证请求、响应和网络接线。</p>
+              <p class="tl">real 模式把左右图和每次调用的选项交给 backend 推理。</p>
+              <p class="tl">backend 返回结果与计时；这里只需要 disparity。</p>
+              <p class="tl">最后用 contract 规定的响应类型把真实结果送回去。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-3">
+        <h2 class="screen-heading" id="module5-screen-3">foo 的施工单：文件一个都别漏</h2>
+        <p>下面是新增服务的最小完整清单。文件名可以参考现有服务，责任边界不能靠复制猜出来。</p>
+
+        <div class="step-cards" aria-label="新增 foo 服务七步文件清单">
+          <article class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>固定上游来源</strong>
+              <p><code>runtimes/foo/upstream/</code> 放固定版本的<span class="term" data-definition="上游（upstream）是这个项目接入的外部原始项目。固定它的版本，能避免对方更新后你的服务突然失效。">上游</span>源码；若用 <span class="term" data-definition="Git submodule 会在当前仓库中记录另一个仓库的精确版本，像在施工单上钉住指定批次的零件。">Git submodule</span>，同步登记根目录的 <code>.gitmodules</code>。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>先建公开契约</strong>
+              <p><code>src/robot_tools/services/foo/contract.py</code> 定义 <code>SERVICE_ID</code>、<code>API_VERSION</code>、<code>ACTIONS</code>、请求和响应；这里不 import 重型模型库。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>补 client 与导出入口</strong>
+              <p><code>client.py</code> 做方便调用与输入整理；<code>__init__.py</code> 对外<span class="term" data-definition="导出（export）是决定包外部可以直接 import 哪些名字。新增类后若忘了导出，文件虽然存在，用户仍可能找不到它。">导出</span> FooClient、请求和响应类型。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>搭好独立 <span class="term" data-definition="runtime 是服务真正运行所需的独立环境，包含模型实现、重型依赖与启动程序。">runtime</span></strong>
+              <p><code>runtimes/foo/server.py</code> 接请求，<code>backend.py</code> 既加载真实模型，也做统一<span class="term" data-definition="适配器（adapter）把一种接口翻译成另一种接口，像转接头。这里用它把上游模型接到 robot-tools 的统一 contract。">适配器</span>；根 <code>pyproject.toml + uv.lock</code> 锁定轻量 fake 环境，<code>real/pyproject.toml + real/uv.lock</code> 单独锁定真实重依赖。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>让安装与诊断可重复</strong>
+              <p><code>install.sh</code>、<code>download.sh</code>、<code>doctor.py</code>、可选 <code>compat/</code> 分别管环境、资源、诊断和兼容；安装/下载<span class="term" data-definition="可执行脚本是能直接运行的自动化文件。创建后要保留执行权限，否则内容正确也会出现 permission denied。">可执行脚本</span>要保留执行权限，并补 <code>README.md</code>、<code>PREREQUISITES.md</code>。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <strong>登记启动与连接资料</strong>
+              <p><code>src/robot_tools/registry.py</code> 这份<span class="term" data-definition="注册表（registry）是‘服务名 → 运行资料’的集中清单，让启动器知道目录、命令和默认端口。">注册表</span>登记 foo 的 runtime 目录、启动命令、<span class="term" data-definition="GPU 是擅长并行计算的图形处理器，许多视觉模型用它加速推理。">GPU</span> 要求和唯一默认<span class="term" data-definition="端口（port）像一栋电脑大楼中的房间号；不同服务同时运行时不能占用同一个房间号。">端口</span>；<code>services.example.yaml</code> 补启动 profile，<code>endpoints.example.yaml</code> 补调用方的 <span class="term" data-definition="endpoint 是客户端连接服务的网络地址，通常由 host 和 port 组成。">endpoint</span> 样例。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <strong>留下用法与证据</strong>
+              <p><code>examples/</code> 给最小调用，<code>tests/</code> 覆盖 contract、client、fake server 和真实探针，<code>docs/</code> 写安装、版本、排错与限制。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-4">
+        <h2 class="screen-heading" id="module5-screen-4">分拣挑战：这段代码属于谁？</h2>
+        <p>把每张提案卡拖到它真正负责的层。判断依据是“变化的原因”，不是哪一份现有文件看起来最好复制。</p>
+
+        <div class="dnd-container" id="m5-dnd-service-parts">
+          <div class="dnd-chips" aria-label="待分配代码提案">
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-contract">稳定的请求字段、响应字段与 API 版本</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-client">把常见输入整理成 contract 接受的数组</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-server">handler 路由与 fake / real 分支</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-backend">上游模型预处理、推理与输出适配</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-install">下载权重、创建环境、检查兼容性</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-registry">runtime 目录、启动命令、GPU 与默认端口</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-downstream">某一款相机对象到通用图像数组的转换</div>
+          </div>
+
+          <div class="dnd-zones">
+            <div class="dnd-zone" data-correct="m5-contract">
+              <p class="dnd-zone-label">contract</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-client">
+              <p class="dnd-zone-label">client</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-server">
+              <p class="dnd-zone-label">server</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-backend">
+              <p class="dnd-zone-label">backend</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-install">
+              <p class="dnd-zone-label">install / download / doctor / compat</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-registry">
+              <p class="dnd-zone-label">registry</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-downstream">
+              <p class="dnd-zone-label"><span class="term" data-definition="downstream 是使用这个 SDK 的下游应用。只属于某款相机或某个产品的规则放在下游，避免污染所有服务的公共接口。">downstream 应用</span></p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+          </div>
+
+          <div class="dnd-actions">
+            <button class="quiz-check-btn" type="button" onclick="checkDnD('m5-dnd-service-parts')">检查分工</button>
+            <button class="quiz-reset-btn" type="button" onclick="resetDnD('m5-dnd-service-parts')">重新分配</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-5">
+        <h2 class="screen-heading" id="module5-screen-5">“完成”不是文件齐了，而是证据齐了</h2>
+        <p>下面这份完成定义可以直接放进任务单。它把“看起来能跑”变成别人也能复查的结果。</p>
+
+        <div class="pattern-cards" aria-label="新增服务完成定义">
+          <article class="pattern-card">
+            <div class="pattern-icon">📏</div>
+            <h3 class="pattern-title">契约稳定</h3>
+            <p class="pattern-desc">service id、API version、actions、字段形状/类型/单位明确；关键<span class="term" data-definition="不变量（invariant）是无论走哪条代码路径都必须成立的规则，例如 fake 和 real 都返回同样形状、类型的响应。">不变量</span>在 fake 与 real 路径一致。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🪶</div>
+            <h3 class="pattern-title">边界干净</h3>
+            <p class="pattern-desc">公共 <span class="term" data-definition="SDK 是给其他程序调用的一套现成工具。这里的公共 SDK 应保持轻量，让调用者无需安装模型运行环境。">SDK</span> client 不 import 模型库；Torch、CUDA 和上游依赖只留在 <code>runtimes/foo</code>。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🔧</div>
+            <h3 class="pattern-title">安装可重复</h3>
+            <p class="pattern-desc">新环境按文档可安装；锁文件同步；脚本有执行权限；下载重复运行不会破坏已有资源。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🚦</div>
+            <h3 class="pattern-title">登记无冲突</h3>
+            <p class="pattern-desc">registry、endpoint 样例和文档中的 service id / port 一致，默认端口不与现有服务相撞。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🧪</div>
+            <h3 class="pattern-title">两级验证</h3>
+            <p class="pattern-desc">fake 测试在无 GPU 环境通过；<span class="term" data-definition="real probe 是在真实模型和硬件上做的小型冒烟验证，用少量输入确认安装、加载、推理和返回路径确实连通。">real probe</span> 在支持的机器上得到合理结果。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🧾</div>
+            <h3 class="pattern-title">验收可复查</h3>
+            <p class="pattern-desc"><span class="term" data-definition="验收测试（acceptance test）从使用者角度检查需求是否完成，例如启动 foo、发一个请求并得到符合 contract 的响应。">验收测试</span>、运行命令、输出摘要、限制与未验证项全部写明。</p>
+          </article>
+        </div>
+
+        <h3>可复用 AI Prompt</h3>
+        <div class="scenario-block" aria-label="新增服务 AI 提示词模板">
+          <div class="scenario-context">
+            <span class="scenario-label">复制后替换大括号内容</span>
+            <p><strong>目标：</strong>为 robot-tools 新增 <code>{SERVICE}</code>，主要动作是 <code>{ACTION}</code>，参考 <code>{REFERENCE_SERVICE}</code> 的结构，但先比较差异，不要整目录盲拷。</p>
+            <p><strong>公共 API：</strong>先在 <code>src/robot_tools/services/{SERVICE}/contract.py</code> 定义 service id、API version、actions、请求/响应；写清数组形状、类型、单位、可选字段与默认行为。再实现 client，并更新 <code>__init__.py</code> 导出。</p>
+            <p><strong>runtime：</strong>在 <code>runtimes/{SERVICE}/</code> 隔离所有重依赖；实现 server 的 fake/real 分支与 backend 上游适配，分别维护轻量根 lock 和 <code>real/</code> 重依赖 lock，并补安装/下载/doctor/compat、README 与 PREREQUISITES。脚本必须可执行且可重复运行。</p>
+            <p><strong>接线：</strong>更新 registry、services.example.yaml 与 endpoints.example.yaml，分配未占用端口；补 examples、docs、contract/client/fake 测试和真实 probe。</p>
+            <p><strong>验收：</strong>根 SDK 不新增模型依赖；fake 无 GPU 通过；real probe 返回符合 contract 的 <code>{EXPECTED_SHAPE_AND_DTYPE}</code>；列出修改文件、运行命令、结果、风险与未验证项。若有不兼容变化，说明<span class="term" data-definition="版本升级（version bump）是把 API 版本号向前推进，明确告诉调用方旧约定已经变化。破坏兼容性的修改不能偷偷留在原版本里。">版本升级</span>与迁移方案。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">不要让 AI 用“复制成功”冒充“接入完成”</strong>
+            <p>要求它报告每条验收证据，并明确哪些 real 检查因为没有硬件而尚未执行。诚实的未验证项，比一条含糊的“测试通过”更有价值。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-6">
+        <h2 class="screen-heading" id="module5-screen-6">架构情境演练：你来做接入负责人</h2>
+        <p>这里没有背文件名的题。每题都要求你守住边界、兼容性和可验证性。</p>
+
+        <div class="quiz-container" id="m5-quiz-capstone">
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。某款相机对象是下游产品细节；下游先转成公共 contract 接受的数组，foo 服务就不会被单一厂商绑住。"
+               data-explanation-wrong="还不够稳。把某款相机 SDK 放进公共 client 或 server，会让所有使用者承担不相关依赖，也把通用服务绑在一款设备上。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 1 · 相机转换</span>
+              <p>某机器人使用专有 DepthCam 对象，而 foo 的 contract 接受 NumPy 图像数组。这个转换应放在哪里？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>放进 contract，让 contract import DepthCam SDK</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>写死在 foo server，所有请求都检查 DepthCam 类型</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>放在使用 DepthCam 的下游适配层，再把通用数组交给 FooClient</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="正是如此。固定模型路径属于服务启动配置；每张图都可能变化的阈值属于 per-call contract。"
+               data-explanation-wrong="想想这个值多久变化一次。启动一次才选的资源留在 runtime 启动参数；每次请求都可能不同的选项才进入 contract。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 2 · 两种选项</span>
+              <p>foo 有固定的模型权重路径，也有每张图都可能不同的 score_threshold。怎样分配最清楚？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>两者都做成每次请求字段</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>权重路径是 runtime 启动选项；score_threshold 是可选请求字段</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>两者都硬编码进 backend.py</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。先修 foo 自己的上游固定、安装脚本、runtime 依赖或导入路径，再用全新环境复现；公共 SDK 不应为重型上游兜底。"
+               data-explanation-wrong="ModuleNotFoundError 发生在 foo 的真实 runtime，根 SDK 和 endpoint 都不是安装上游代码的正确位置。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 3 · 上游导入失败</span>
+              <p>fake 测试通过，但 real server 启动时报 <span class="term" data-definition="ModuleNotFoundError 表示 Python 找不到要导入的模块，常见原因是依赖未安装、路径没配置或上游源码未正确接入。"><code>ModuleNotFoundError</code></span><code>: foo_model</code>。第一轮修复范围是什么？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>检查 upstream 固定、install/download、runtime 依赖与导入路径，并在干净环境重试</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>把 foo_model 加进根 SDK 依赖</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>修改 endpoints.example.yaml 的 host</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。字段改名会破坏旧调用方；新版本、兼容声明、迁移说明和双版本测试让变化可见、可验证。"
+               data-explanation-wrong="不兼容变化不能躲在同一个 API_VERSION 下。只改 client 或只改 server 都会让另一端按旧契约说话。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 4 · 不兼容升级</span>
+              <p>团队决定把响应字段 masks 改名为 segments，旧 client 不能自动适配。应该怎样发布？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>保持 API_VERSION 不变，只改 server</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>只让新 client 猜测两种字段名，不写文档</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>提升 API_VERSION，同步兼容声明、迁移文档，并测试旧版与新版行为</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="没错。端口是 registry 与连接样例共同公开的接线资料；选新端口后要同步两处，并用同时启动测试证明没有碰撞。"
+               data-explanation-wrong="随机端口或删除旧服务会把冲突藏起来。应该为 foo 分配稳定、未占用的端口，并同步所有公开接线资料。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 5 · 端口碰撞</span>
+              <p>foo 默认使用 5558，但 sam3 已占用它。怎样处理才算完成？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>让 foo 每次随机挑一个端口，不更新配置</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>选择未占用的稳定端口，同步 registry、endpoint 样例和文档，再测试并行启动</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>删除 sam3 的登记，让 5558 给 foo</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('m5-quiz-capstone')">检查决策</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('m5-quiz-capstone')">重新推演</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+<section class="module" id="module-6" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">06</span>
+      <h1 class="module-title">出问题时怎么查：从症状倒推层级</h1>
+      <p class="module-subtitle">像飞行员看仪表和黑匣子一样，用证据缩小范围，不靠随机拆零件。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">驾驶舱里，五块仪表各看一层</h2>
+        <p>
+          红灯亮起时，第一步不是“先重装试试”，而是确认哪块仪表变红。每份证据都有自己的观察范围。
+        </p>
+
+        <div class="pattern-cards stagger-children" aria-label="五类调试证据">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">📡</div>
+            <h4 class="pattern-title"><span class="term" data-definition="status 是检查已配置远端地址的命令。它不只问服务有没有响应，还核对响应者是不是预期的服务与协议。">status</span></h4>
+            <p class="pattern-desc">看远端能否连接，以及“它到底是谁”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🩺</div>
+            <h4 class="pattern-title"><span class="term" data-definition="doctor 是本机环境体检命令。它检查 runtime、锁定信息和标记文件是否彼此一致。">doctor</span></h4>
+            <p class="pattern-desc">看本机 <span class="term" data-definition="runtime 是让某个服务真正运行起来的一组环境、依赖、脚本和状态文件。">runtime</span> 有没有装对、同步对。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">⚠️</div>
+            <h4 class="pattern-title"><span class="term" data-definition="typed exception 是有明确种类的程序错误，例如连接失败或服务繁忙。错误种类本身就能指出故障大概在哪一层。">typed exception</span></h4>
+            <p class="pattern-desc">看这一次调用，是连接、等待、容量还是远端计算出了问题。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🏷️</div>
+            <h4 class="pattern-title"><span class="term" data-definition="request ID 是一次请求的唯一编号。把它交给服务端日志搜索，就能把客户端报错和同一次服务端处理对应起来。">request_id</span></h4>
+            <p class="pattern-desc">把客户端错误对准服务端的 <span class="term" data-definition="日志是程序运行时留下的事件记录，包含时间、请求编号和错误位置，是排错的黑匣子。">日志</span> 与 <span class="term" data-definition="traceback 是异常发生后打印出的调用路径，按顺序展示错误经过了哪些函数，最后在哪一行爆发。">traceback</span>。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🧪</div>
+            <h4 class="pattern-title"><span class="term" data-definition="回归测试是把已经修好的故障写成自动检查。以后代码变化时，它会提醒团队同一个坑是否又出现。">regression test</span></h4>
+            <p class="pattern-desc">把修复变成可重复执行的承诺，阻止旧故障返航。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">证据优先，猜测靠后</strong>
+            <p>一份证据只回答一个范围明确的问题：status 看远端身份，doctor 看本机状态，exception 与 request_id 看单次调用，测试守住修复。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">从一行输出，走到下一份证据</h2>
+        <p>先给症状分类，再选择工具。下面这条链路的目标不是立刻猜中根因，而是每走一步都缩小范围。</p>
+
+        <div class="flow-steps stagger-children" aria-label="证据优先调试流程">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">1</div>
+            <p><strong>保存原始输出</strong><br>命令、状态码、异常类型</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">2</div>
+            <p><strong>定位层级</strong><br>远端身份、本机 runtime、单次请求</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">3</div>
+            <p><strong>取下一证据</strong><br>health、doctor、request_id、traceback</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">4</div>
+            <p><strong>做最小改动</strong><br>只修证据指向的边界</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">5</div>
+            <p><strong>加回归测试</strong><br>让同类故障不能悄悄回来</p>
+          </div>
+        </div>
+
+        <div class="pattern-cards stagger-children" aria-label="症状到首查证据的错误卡组">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">🔌</div>
+            <h4 class="pattern-title">Connect error</h4>
+            <p class="pattern-desc">先用 status 核对 <span class="term" data-definition="endpoint 是服务可访问的网络地址，通常由 host 和 port 组成。它就像服务的门牌号。">endpoint</span>，再确认进程是否启动、地址是否写对。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-warning)">
+            <div class="pattern-icon" style="background: var(--color-warning)">🪪</div>
+            <h4 class="pattern-title">Protocol mismatch</h4>
+            <p class="pattern-desc">连接已经成功；接下来比较 health 里的服务身份与 <span class="term" data-definition="协议是一套通信约定，规定双方怎样表达请求、响应和版本。协议不兼容时，能连上也不能安全合作。">protocol</span>，检查 <span class="term" data-definition="兼容性表示两个组件的版本和数据约定能否正确配合。能连接不等于兼容。">compatibility</span>。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🚦</div>
+            <h4 class="pattern-title">503 Busy</h4>
+            <p class="pattern-desc">服务活着，但 <span class="term" data-definition="admission 是服务决定新任务能否进入的入口控制；容量满时，它会拒绝新任务，保护正在运行的工作。">admission</span> 拒绝了请求。看并发与 <span class="term" data-definition="capacity 是服务同一时间能够安全处理的任务量，受线程、内存和 GPU 等资源限制。">capacity</span>，不要先改 contract。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🔒</div>
+            <h4 class="pattern-title">Doctor marker mismatch</h4>
+            <p class="pattern-desc">这是本机 runtime 证据。对照 profile、lock 与 <span class="term" data-definition="marker 是安装或同步过程留下的小型状态文件，用来证明某一步按哪些输入完成。内容不一致意味着本机状态可能过期。">real marker</span>，再决定是否重新同步。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🔥</div>
+            <h4 class="pattern-title">500 Inference</h4>
+            <p class="pattern-desc">带着 request_id 查服务端 traceback，确认错误是在 handler 还是 <span class="term" data-definition="inference 是让已经准备好的模型根据输入计算结果的过程。">inference</span> backend，而不是凭空重启。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-info)">
+            <div class="pattern-icon" style="background: var(--color-info)">⏱️</div>
+            <h4 class="pattern-title">Timeout</h4>
+            <p class="pattern-desc"><span class="term" data-definition="timeout 是等待超过预设时限后主动停止。它说明结果没及时回来，但还不能单独证明服务已经崩溃。">超时</span>只说明“等太久”，还要用 status 和 request_id 区分网络慢、排队或计算慢。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Spot the bug：绿灯亮着，却是错误的飞机</h2>
+        <p>演练场景：你查询的是 FastFS，health 也说自己 ready，但 status 仍判定不通过。点击真正破坏兼容身份的那一行。</p>
+
+        <div class="bug-challenge animate-in" id="module6-spot-bug">
+          <h3>哪一行会让 FastFS 的 status 显示红叉？</h3>
+          <div class="bug-code">
+            <div class="bug-line" data-line="1" data-hint="这一行只是写明 status 期待找到 FastFS，目标本身没有错。" onclick="checkBugLine(this, false)">
+              <span class="line-num">1</span>
+              <code>expected_service = "fastfs"</code>
+            </div>
+            <div class="bug-line" data-line="2" data-hint="建立 health 字典不会改变服务身份，继续查看字典里的具体内容。" onclick="checkBugLine(this, false)">
+              <span class="line-num">2</span>
+              <code>health = {</code>
+            </div>
+            <div class="bug-line bug-target" data-line="3" data-explanation="找到了！查询目标是 fastfs，返回身份却写成 sam3。ready 只代表它能响应，status 仍必须拒绝这份不匹配的健康信息。修复为 service: fastfs。" onclick="checkBugLine(this, true)">
+              <span class="line-num">3</span>
+              <code>    "service": "sam3",</code>
+            </div>
+            <div class="bug-line" data-line="4" data-hint="ready 为 True 说明进程愿意接收请求，但它不能替代服务身份检查。" onclick="checkBugLine(this, false)">
+              <span class="line-num">4</span>
+              <code>    "ready": True,</code>
+            </div>
+            <div class="bug-line" data-line="5" data-hint="结束字典的括号没有问题，关键证据在字典的字段值里。" onclick="checkBugLine(this, false)">
+              <span class="line-num">5</span>
+              <code>}</code>
+            </div>
+            <div class="bug-line" data-line="6" data-hint="兼容检查本来就应该核对服务身份，这个比较方向是正确的。" onclick="checkBugLine(this, false)">
+              <span class="line-num">6</span>
+              <code>compatible = (</code>
+            </div>
+            <div class="bug-line" data-line="7" data-hint="status 正需要这一行来发现 sam3 与 fastfs 不相等，不要删掉证据检查。" onclick="checkBugLine(this, false)">
+              <span class="line-num">7</span>
+              <code>    health["service"] == expected_service</code>
+            </div>
+            <div class="bug-line" data-line="8" data-hint="同时要求服务 ready 是合理的；身份写错才是这次红叉的根因。" onclick="checkBugLine(this, false)">
+              <span class="line-num">8</span>
+              <code>    and health["ready"]</code>
+            </div>
+            <div class="bug-line" data-line="9" data-hint="这只是结束多行条件的括号。" onclick="checkBugLine(this, false)">
+              <span class="line-num">9</span>
+              <code>)</code>
+            </div>
+          </div>
+          <div class="bug-feedback" id="module6-bug-feedback"></div>
+        </div>
+
+        <div class="callout callout-warning animate-in">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">“能连上”不是“连对了”</strong>
+            <p>端口交换后，两个服务都可能返回 200；只有核对 health 身份，才能发现请求走进了错误的驾驶舱。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">测试不是摆设，而是两份可执行承诺</h2>
+        <p>第一份承诺防止 status 只看“活着”；第二份承诺防止 install 偷做 profile 之外的事。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_launcher_status.py</span>
+            <pre><code><span class="code-line">def test_status_rejects_swapped_service_ports(tmp_path, monkeypatch, capsys):</span>
+<span class="code-line">    path = _endpoints(</span>
+<span class="code-line">        tmp_path,</span>
+<span class="code-line">        "  fastfs: {host: 127.0.0.1, port: 5558}\n  sam3: {host: 127.0.0.1, port: 5556}\n",</span>
+<span class="code-line">    )</span>
+<span class="code-line">    _mock_health_by_port(</span>
+<span class="code-line">        monkeypatch,</span>
+<span class="code-line">        {</span>
+<span class="code-line">            5556: _health("fastfs"),</span>
+<span class="code-line">            5558: _health("sam3"),</span>
+<span class="code-line">        },</span>
+<span class="code-line">    )</span>
+<span class="code-line"></span>
+<span class="code-line">    assert launcher.status(path) == 1</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义回归测试；<span class="term" data-definition="fixture 是测试框架预先准备并交给测试的工具或数据，例如临时目录。它让测试专注于行为，不必重复搭环境。">fixture</span> 提供临时目录、替换工具和输出捕获。</p>
+              <p class="tl">开始写一份临时 endpoints 配置。</p>
+              <p class="tl">文件放进测试专用临时目录。</p>
+              <p class="tl">故意把 fastfs 和 sam3 的端口交换。</p>
+              <p class="tl">端点文件准备完毕。</p>
+              <p class="tl">用假的 health 响应控制每个端口会报告谁。</p>
+              <p class="tl"><span class="term" data-definition="monkeypatch 是测试中临时替换函数、属性或环境值的工具；测试结束后会自动恢复。">monkeypatch</span> 负责安全替换。</p>
+              <p class="tl">建立端口到 health 的对应表。</p>
+              <p class="tl">5556 故意报告 fastfs。</p>
+              <p class="tl">5558 故意报告 sam3。</p>
+              <p class="tl">对应表结束。</p>
+              <p class="tl">假的 health 环境准备完成。</p>
+              <p class="tl">现在执行真正的判断。</p>
+              <p class="tl"><span class="term" data-definition="assert 是测试中的硬性判断：条件必须成立，否则测试失败。它把期望行为写成机器可检查的规则。">assert</span> status 返回 1，也就是必须拒绝交换端口。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_launcher_parse.py</span>
+            <pre><code><span class="code-line">def test_install_initializes_only_services_in_profile(tmp_path, monkeypatch):</span>
+<span class="code-line">    profile = _write(tmp_path, "services:\n  - name: sam3\n  - name: fastfs\n")</span>
+<span class="code-line">    initialized = []</span>
+<span class="code-line">    synced = []</span>
+<span class="code-line">    scripts = []</span>
+<span class="code-line">    monkeypatch.setattr(launcher, "_init_upstream", lambda spec: initialized.append(spec.service_id))</span>
+<span class="code-line">    monkeypatch.setattr(launcher, "_sync_one", lambda spec, extras: synced.append((spec.service_id, extras)))</span>
+<span class="code-line">    monkeypatch.setattr(</span>
+<span class="code-line">        launcher,</span>
+<span class="code-line">        "_run_runtime_script",</span>
+<span class="code-line">        lambda spec, script: scripts.append((spec.service_id, script)),</span>
+<span class="code-line">    )</span>
+<span class="code-line"></span>
+<span class="code-line">    launcher.install(Path(profile))</span>
+<span class="code-line"></span>
+<span class="code-line">    assert initialized == ["sam3", "fastfs"]</span>
+<span class="code-line">    assert synced == [("sam3", []), ("fastfs", [])]</span>
+<span class="code-line">    assert scripts == [("sam3", "install.sh"), ("fastfs", "install.sh")]</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义测试：install 只能初始化 profile 点名的服务。</p>
+              <p class="tl">写一份只包含 sam3 与 fastfs 的临时 profile。</p>
+              <p class="tl">准备清单，记录谁被初始化。</p>
+              <p class="tl">准备清单，记录谁被同步。</p>
+              <p class="tl">准备清单，记录谁运行了脚本。</p>
+              <p class="tl">把真实初始化替换成只记名字的 <span class="term" data-definition="mock 是测试用的替身：它模仿真实函数的接口，但只记录调用或返回预设结果，不执行昂贵操作。">mock</span>。</p>
+              <p class="tl">把真实同步也替换掉，并记录服务与 extras。</p>
+              <p class="tl">开始替换脚本执行函数。</p>
+              <p class="tl">替换目标属于 launcher。</p>
+              <p class="tl">目标是 runtime 脚本执行函数。</p>
+              <p class="tl"><span class="term" data-definition="lambda 是一行写完的小函数。这里它不运行脚本，只把收到的参数追加到记录清单。">lambda</span> 只记录服务与脚本。</p>
+              <p class="tl">第三个替身准备完成。</p>
+              <p class="tl">环境隔离完成。</p>
+              <p class="tl">对这份 profile 真正调用 install。</p>
+              <p class="tl">接下来检查三份飞行记录。</p>
+              <p class="tl">初始化顺序只能是 sam3、fastfs。</p>
+              <p class="tl">同步对象与 extras 必须完全一致。</p>
+              <p class="tl">脚本也只能为这两个服务各执行一次。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">第三份承诺：坏输入绝不能偷偷出网</h2>
+        <p>客户端验证失败时，最重要的证据不只是“抛了错误”，还包括网络请求一次都没有发生。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_graspgenx_client.py</span>
+            <pre><code><span class="code-line">calls = []</span>
+<span class="code-line">with GraspGenXClient(wait=False) as client:</span>
+<span class="code-line">    monkeypatch.setattr(client, "_request", lambda *args: calls.append(args))</span>
+<span class="code-line"></span>
+<span class="code-line">    with pytest.raises((TypeError, ValueError)):</span>
+<span class="code-line">        _call_inference(</span>
+<span class="code-line">            client,</span>
+<span class="code-line">            method_name,</span>
+<span class="code-line">            grasp_threshold=grasp_threshold,</span>
+<span class="code-line">            topk_num_grasps=topk_num_grasps,</span>
+<span class="code-line">        )</span>
+<span class="code-line"></span>
+<span class="code-line">assert calls == []</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">先准备空清单，专门记录网络请求。</p>
+              <p class="tl">打开一个不等待服务的 GraspGenXClient，并保证用完后正确关闭。</p>
+              <p class="tl">把 <code>_request</code> 换成记录器：若请求发生，参数就会进入 calls。</p>
+              <p class="tl">监控装好，开始执行故障场景。</p>
+              <p class="tl"><span class="term" data-definition="pytest.raises 是测试错误行为的工具：括号里的异常必须发生，否则测试失败。">pytest.raises</span> 要求坏输入产生 TypeError 或 ValueError。</p>
+              <p class="tl">调用统一的 inference 测试助手。</p>
+              <p class="tl">传入当前客户端。</p>
+              <p class="tl">传入要测试的方法名。</p>
+              <p class="tl">传入可能不合法的 grasp threshold。</p>
+              <p class="tl">传入可能不合法的 top-k 抓取数量。</p>
+              <p class="tl">调用参数准备完成。</p>
+              <p class="tl">异常检查范围结束。</p>
+              <p class="tl">最后证明 calls 仍为空：错误在本地被拦下，没有污染远端。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-steps stagger-children" aria-label="从故障到回归测试的闭环">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">症</div>
+            <p>不合法参数</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">界</div>
+            <p>客户端验证</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">证</div>
+            <p>指定异常 + 零次请求</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">锁</div>
+            <p>以后谁改坏，测试立即报警</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">场景演练：资深工程师会先查什么？</h2>
+        <p>每题都只问“下一步最值钱的证据”。选完再检查思路，不需要背命令。</p>
+
+        <div class="quiz-container" id="module6-scenario-quiz">
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="对。连接都没建立，先确认门牌号和进程最省时间；模型日志此时还不会有这次请求。"
+               data-explanation-wrong="连接错误发生在请求进入服务之前。先用 status 和 endpoint 证据确认地址与进程，再深入模型层。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 1 · Connect error</span>
+              <p>新机器第一次调用 FastFS，立刻得到连接被拒绝，也没有 request_id。</p>
+            </div>
+            <h3 class="quiz-question">第一步做什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>直接修改 inference backend</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>运行 status，并核对 endpoint 与服务进程</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>先放宽响应 schema</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。协议不匹配说明网络已经通了，但身份或版本对不上；应比较配置目标与 health 元数据。"
+               data-explanation-wrong="这不是单纯的进程存活问题。status 已拿到响应，真正有价值的是核对它报告的服务身份与协议版本。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 2 · Protocol mismatch</span>
+              <p>status 能访问端口，但显示服务身份或协议不匹配。</p>
+            </div>
+            <h3 class="quiz-question">哪份证据最能继续缩小范围？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>对照 endpoint 配置与 health 中的 service、protocol</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>检查输入图像的每个像素</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>把客户端 timeout 无限调大</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。503 Busy 是服务主动保护容量的证据；先看 admission、并发与重试策略，不要误判成协议坏了。"
+               data-explanation-wrong="503 Busy 表示服务活着并明确拒绝新任务。下一步应检查容量证据与排队策略。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 3 · 503 Busy</span>
+              <p>低并发时成功，高并发时部分请求稳定返回 503，服务仍然 ready。</p>
+            </div>
+            <h3 class="quiz-question">下一步应聚焦哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>重新生成所有 runtime lock</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>删除 health 身份检查</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>查看 admission、并发上限、任务时长与重试</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="对。doctor 的 real marker mismatch 指向本机运行时状态；先比较 profile、lock、marker 的输入，再做针对性同步。"
+               data-explanation-wrong="这份证据来自 doctor，不是远端单次请求。先查本机 runtime 的 profile、lock 和 marker。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 4 · Real marker mismatch</span>
+              <p>远端 status 正常，但 doctor 报本机 real marker 与当前 lock 不一致。</p>
+            </div>
+            <h3 class="quiz-question">最合理的第一步是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>修改服务端响应 dtype</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>比较本机 profile、lock、marker，再决定同步动作</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>增加客户端网络重试次数</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。request_id 是跨越客户端与服务端的线索；先找到同一次请求的 traceback，再判断 handler、输入适配还是 backend 出错。"
+               data-explanation-wrong="500 已经告诉你错误发生在服务端处理内部。用 request_id 找到对应 traceback，证据会比随机重启更精确。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 5 · Inference 500</span>
+              <p>一条真实推理请求返回 500，客户端错误对象里带有 request_id。</p>
+            </div>
+            <h3 class="quiz-question">怎样最快找到故障位置？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>按 request_id 搜服务端日志，阅读对应 traceback</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>把 500 当成 busy 并无限重试</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>交换两个服务的端口再试一次</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('module6-scenario-quiz')">检查调试思路</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('module6-scenario-quiz')">换条证据再想</button>
+        </div>
+
+        <h3>结课前：我能把一个新服务带到可运营状态</h3>
+        <div class="pattern-cards stagger-children" aria-label="新增服务掌握清单">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">1</div>
+            <h4 class="pattern-title">会分层</h4>
+            <p class="pattern-desc">我能用 status、doctor 和 typed exception 判断先查哪一层。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">2</div>
+            <h4 class="pattern-title">会留证</h4>
+            <p class="pattern-desc">我会保存状态码、异常类型、request_id 和原始输出。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">3</div>
+            <h4 class="pattern-title">会对线</h4>
+            <p class="pattern-desc">我能用 request_id 把客户端错误连到服务端 traceback。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">4</div>
+            <h4 class="pattern-title">会隔离</h4>
+            <p class="pattern-desc">我会用 fixture、mock 与 monkeypatch 做最小复现。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">5</div>
+            <h4 class="pattern-title">会守住</h4>
+            <p class="pattern-desc">修复后，我会加回归测试，让旧故障不再回来。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+  </main>
+
+</body>
+</html>

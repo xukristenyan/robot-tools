@@ -1,12 +1,16 @@
-[submodule "servers/graspgen/upstream"]
-	path = servers/graspgen/upstream
+[submodule "runtimes/graspgen/upstream"]
+	path = runtimes/graspgen/upstream
 	url = https://github.com/NVlabs/GraspGen.git
 	ignore = dirty
-[submodule "servers/fastfs/upstream"]
-	path = servers/fastfs/upstream
+[submodule "runtimes/fastfs/upstream"]
+	path = runtimes/fastfs/upstream
 	url = https://github.com/NVlabs/Fast-FoundationStereo.git
 	ignore = dirty
-[submodule "servers/sam3/upstream"]
-	path = servers/sam3/upstream
+[submodule "runtimes/sam3/upstream"]
+	path = runtimes/sam3/upstream
 	url = https://github.com/facebookresearch/sam3.git
+	ignore = dirty
+[submodule "runtimes/graspgenx/upstream"]
+	path = runtimes/graspgenx/upstream
+	url = https://github.com/NVlabs/GraspGenX.git
 	ignore = dirty

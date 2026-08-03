@@ -1,0 +1,24 @@
+diff --git a/graspgenx/serving/__init__.py b/graspgenx/serving/__init__.py
+index 8cd6655..0ec8318 100644
+--- a/graspgenx/serving/__init__.py
++++ b/graspgenx/serving/__init__.py
+@@ -11,5 +11,16 @@
+ from graspgenx.serving.types import SweepVolumeParams
+-from graspgenx.serving.zmq_client import GraspGenXClient
+-from graspgenx.serving.zmq_server import GraspGenXZMQServer
+-
++
++
++def __getattr__(name):
++    """Load the optional ZMQ transport only when its exports are requested."""
++    if name == "GraspGenXClient":
++        from graspgenx.serving.zmq_client import GraspGenXClient
++
++        return GraspGenXClient
++    if name == "GraspGenXZMQServer":
++        from graspgenx.serving.zmq_server import GraspGenXZMQServer
++
++        return GraspGenXZMQServer
++    raise AttributeError(name)
++
+ __all__ = ["GraspGenXClient", "GraspGenXZMQServer", "SweepVolumeParams"]

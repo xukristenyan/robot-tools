@@ -1,0 +1,11 @@
+# Connection profile for the example scripts: where each service is reachable
+# from this machine. Point a host at gpu5090.local (or a Tailscale name) to
+# call a server remotely through SSH/Tailscale or a trusted, firewalled LAN.
+# Never expose these unauthenticated HTTP services directly to the internet.
+#   robot-tools status endpoints.yaml      # health-check everything listed
+
+endpoints:
+  graspgen: { host: 127.0.0.1, port: 5557 }
+  graspgenx: { host: 127.0.0.1, port: 5559 }
+  fastfs:   { host: 127.0.0.1, port: 5556 }
+  sam3:     { host: 127.0.0.1, port: 5558 }

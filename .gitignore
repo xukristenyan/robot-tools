@@ -5,10 +5,12 @@ build/
 dist/
 wheels/
 *.egg-info
+.ipynb_checkpoints/
 
-# Virtual environments (root SDK + per-server)
+# Virtual environments (root SDK + per-runtime)
 .venv
-servers/*/.venv
+runtimes/*/.venv
+runtimes/*/real/.venv
 
 # Model weights / caches (never commit)
 checkpoints/
@@ -22,19 +24,26 @@ weights/
 .vscode/
 .idea/
 .DS_Store
+._*
+Thumbs.db
 *.swp
 *~
 
-# Tooling caches
+# Tooling caches / reports
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+.hypothesis/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+junit.xml
 
 # Secrets
 .env
-.env.local
+.env.*
+!.env.example
 
 # Logs
 logs/
@@ -43,3 +52,11 @@ logs/
 # Local service profile (the user's own copy of services.example.yaml).
 # Leading slash anchors at repo root so examples/services.yaml stays tracked.
 /services.yaml
+
+# Local endpoint profile (the user's own copy of endpoints.example.yaml).
+/endpoints.yaml
+
+# Local inputs and default outputs used by the example scripts.
+/data/
+/depth.npy
+/sam3_out/

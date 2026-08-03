@@ -1,0 +1,499 @@
+<section class="module" id="module-6" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">06</span>
+      <h1 class="module-title">出问题时怎么查：从症状倒推层级</h1>
+      <p class="module-subtitle">像飞行员看仪表和黑匣子一样，用证据缩小范围，不靠随机拆零件。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">驾驶舱里，五块仪表各看一层</h2>
+        <p>
+          红灯亮起时，第一步不是“先重装试试”，而是确认哪块仪表变红。每份证据都有自己的观察范围。
+        </p>
+
+        <div class="pattern-cards stagger-children" aria-label="五类调试证据">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">📡</div>
+            <h4 class="pattern-title"><span class="term" data-definition="status 是检查已配置远端地址的命令。它不只问服务有没有响应，还核对响应者是不是预期的服务与协议。">status</span></h4>
+            <p class="pattern-desc">看远端能否连接，以及“它到底是谁”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🩺</div>
+            <h4 class="pattern-title"><span class="term" data-definition="doctor 是本机环境体检命令。它检查 runtime、锁定信息和标记文件是否彼此一致。">doctor</span></h4>
+            <p class="pattern-desc">看本机 <span class="term" data-definition="runtime 是让某个服务真正运行起来的一组环境、依赖、脚本和状态文件。">runtime</span> 有没有装对、同步对。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">⚠️</div>
+            <h4 class="pattern-title"><span class="term" data-definition="typed exception 是有明确种类的程序错误，例如连接失败或服务繁忙。错误种类本身就能指出故障大概在哪一层。">typed exception</span></h4>
+            <p class="pattern-desc">看这一次调用，是连接、等待、容量还是远端计算出了问题。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🏷️</div>
+            <h4 class="pattern-title"><span class="term" data-definition="request ID 是一次请求的唯一编号。把它交给服务端日志搜索，就能把客户端报错和同一次服务端处理对应起来。">request_id</span></h4>
+            <p class="pattern-desc">把客户端错误对准服务端的 <span class="term" data-definition="日志是程序运行时留下的事件记录，包含时间、请求编号和错误位置，是排错的黑匣子。">日志</span> 与 <span class="term" data-definition="traceback 是异常发生后打印出的调用路径，按顺序展示错误经过了哪些函数，最后在哪一行爆发。">traceback</span>。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🧪</div>
+            <h4 class="pattern-title"><span class="term" data-definition="回归测试是把已经修好的故障写成自动检查。以后代码变化时，它会提醒团队同一个坑是否又出现。">regression test</span></h4>
+            <p class="pattern-desc">把修复变成可重复执行的承诺，阻止旧故障返航。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">证据优先，猜测靠后</strong>
+            <p>一份证据只回答一个范围明确的问题：status 看远端身份，doctor 看本机状态，exception 与 request_id 看单次调用，测试守住修复。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">从一行输出，走到下一份证据</h2>
+        <p>先给症状分类，再选择工具。下面这条链路的目标不是立刻猜中根因，而是每走一步都缩小范围。</p>
+
+        <div class="flow-steps stagger-children" aria-label="证据优先调试流程">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">1</div>
+            <p><strong>保存原始输出</strong><br>命令、状态码、异常类型</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">2</div>
+            <p><strong>定位层级</strong><br>远端身份、本机 runtime、单次请求</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">3</div>
+            <p><strong>取下一证据</strong><br>health、doctor、request_id、traceback</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">4</div>
+            <p><strong>做最小改动</strong><br>只修证据指向的边界</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">5</div>
+            <p><strong>加回归测试</strong><br>让同类故障不能悄悄回来</p>
+          </div>
+        </div>
+
+        <div class="pattern-cards stagger-children" aria-label="症状到首查证据的错误卡组">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">🔌</div>
+            <h4 class="pattern-title">Connect error</h4>
+            <p class="pattern-desc">先用 status 核对 <span class="term" data-definition="endpoint 是服务可访问的网络地址，通常由 host 和 port 组成。它就像服务的门牌号。">endpoint</span>，再确认进程是否启动、地址是否写对。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-warning)">
+            <div class="pattern-icon" style="background: var(--color-warning)">🪪</div>
+            <h4 class="pattern-title">Protocol mismatch</h4>
+            <p class="pattern-desc">连接已经成功；接下来比较 health 里的服务身份与 <span class="term" data-definition="协议是一套通信约定，规定双方怎样表达请求、响应和版本。协议不兼容时，能连上也不能安全合作。">protocol</span>，检查 <span class="term" data-definition="兼容性表示两个组件的版本和数据约定能否正确配合。能连接不等于兼容。">compatibility</span>。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🚦</div>
+            <h4 class="pattern-title">503 Busy</h4>
+            <p class="pattern-desc">服务活着，但 <span class="term" data-definition="admission 是服务决定新任务能否进入的入口控制；容量满时，它会拒绝新任务，保护正在运行的工作。">admission</span> 拒绝了请求。看并发与 <span class="term" data-definition="capacity 是服务同一时间能够安全处理的任务量，受线程、内存和 GPU 等资源限制。">capacity</span>，不要先改 contract。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🔒</div>
+            <h4 class="pattern-title">Doctor marker mismatch</h4>
+            <p class="pattern-desc">这是本机 runtime 证据。对照 profile、lock 与 <span class="term" data-definition="marker 是安装或同步过程留下的小型状态文件，用来证明某一步按哪些输入完成。内容不一致意味着本机状态可能过期。">real marker</span>，再决定是否重新同步。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🔥</div>
+            <h4 class="pattern-title">500 Inference</h4>
+            <p class="pattern-desc">带着 request_id 查服务端 traceback，确认错误是在 handler 还是 <span class="term" data-definition="inference 是让已经准备好的模型根据输入计算结果的过程。">inference</span> backend，而不是凭空重启。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-info)">
+            <div class="pattern-icon" style="background: var(--color-info)">⏱️</div>
+            <h4 class="pattern-title">Timeout</h4>
+            <p class="pattern-desc"><span class="term" data-definition="timeout 是等待超过预设时限后主动停止。它说明结果没及时回来，但还不能单独证明服务已经崩溃。">超时</span>只说明“等太久”，还要用 status 和 request_id 区分网络慢、排队或计算慢。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">Spot the bug：绿灯亮着，却是错误的飞机</h2>
+        <p>演练场景：你查询的是 FastFS，health 也说自己 ready，但 status 仍判定不通过。点击真正破坏兼容身份的那一行。</p>
+
+        <div class="bug-challenge animate-in" id="module6-spot-bug">
+          <h3>哪一行会让 FastFS 的 status 显示红叉？</h3>
+          <div class="bug-code">
+            <div class="bug-line" data-line="1" data-hint="这一行只是写明 status 期待找到 FastFS，目标本身没有错。" onclick="checkBugLine(this, false)">
+              <span class="line-num">1</span>
+              <code>expected_service = "fastfs"</code>
+            </div>
+            <div class="bug-line" data-line="2" data-hint="建立 health 字典不会改变服务身份，继续查看字典里的具体内容。" onclick="checkBugLine(this, false)">
+              <span class="line-num">2</span>
+              <code>health = {</code>
+            </div>
+            <div class="bug-line bug-target" data-line="3" data-explanation="找到了！查询目标是 fastfs，返回身份却写成 sam3。ready 只代表它能响应，status 仍必须拒绝这份不匹配的健康信息。修复为 service: fastfs。" onclick="checkBugLine(this, true)">
+              <span class="line-num">3</span>
+              <code>    "service": "sam3",</code>
+            </div>
+            <div class="bug-line" data-line="4" data-hint="ready 为 True 说明进程愿意接收请求，但它不能替代服务身份检查。" onclick="checkBugLine(this, false)">
+              <span class="line-num">4</span>
+              <code>    "ready": True,</code>
+            </div>
+            <div class="bug-line" data-line="5" data-hint="结束字典的括号没有问题，关键证据在字典的字段值里。" onclick="checkBugLine(this, false)">
+              <span class="line-num">5</span>
+              <code>}</code>
+            </div>
+            <div class="bug-line" data-line="6" data-hint="兼容检查本来就应该核对服务身份，这个比较方向是正确的。" onclick="checkBugLine(this, false)">
+              <span class="line-num">6</span>
+              <code>compatible = (</code>
+            </div>
+            <div class="bug-line" data-line="7" data-hint="status 正需要这一行来发现 sam3 与 fastfs 不相等，不要删掉证据检查。" onclick="checkBugLine(this, false)">
+              <span class="line-num">7</span>
+              <code>    health["service"] == expected_service</code>
+            </div>
+            <div class="bug-line" data-line="8" data-hint="同时要求服务 ready 是合理的；身份写错才是这次红叉的根因。" onclick="checkBugLine(this, false)">
+              <span class="line-num">8</span>
+              <code>    and health["ready"]</code>
+            </div>
+            <div class="bug-line" data-line="9" data-hint="这只是结束多行条件的括号。" onclick="checkBugLine(this, false)">
+              <span class="line-num">9</span>
+              <code>)</code>
+            </div>
+          </div>
+          <div class="bug-feedback" id="module6-bug-feedback"></div>
+        </div>
+
+        <div class="callout callout-warning animate-in">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">“能连上”不是“连对了”</strong>
+            <p>端口交换后，两个服务都可能返回 200；只有核对 health 身份，才能发现请求走进了错误的驾驶舱。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">测试不是摆设，而是两份可执行承诺</h2>
+        <p>第一份承诺防止 status 只看“活着”；第二份承诺防止 install 偷做 profile 之外的事。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_launcher_status.py</span>
+            <pre><code><span class="code-line">def test_status_rejects_swapped_service_ports(tmp_path, monkeypatch, capsys):</span>
+<span class="code-line">    path = _endpoints(</span>
+<span class="code-line">        tmp_path,</span>
+<span class="code-line">        "  fastfs: {host: 127.0.0.1, port: 5558}\n  sam3: {host: 127.0.0.1, port: 5556}\n",</span>
+<span class="code-line">    )</span>
+<span class="code-line">    _mock_health_by_port(</span>
+<span class="code-line">        monkeypatch,</span>
+<span class="code-line">        {</span>
+<span class="code-line">            5556: _health("fastfs"),</span>
+<span class="code-line">            5558: _health("sam3"),</span>
+<span class="code-line">        },</span>
+<span class="code-line">    )</span>
+<span class="code-line"></span>
+<span class="code-line">    assert launcher.status(path) == 1</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义回归测试；<span class="term" data-definition="fixture 是测试框架预先准备并交给测试的工具或数据，例如临时目录。它让测试专注于行为，不必重复搭环境。">fixture</span> 提供临时目录、替换工具和输出捕获。</p>
+              <p class="tl">开始写一份临时 endpoints 配置。</p>
+              <p class="tl">文件放进测试专用临时目录。</p>
+              <p class="tl">故意把 fastfs 和 sam3 的端口交换。</p>
+              <p class="tl">端点文件准备完毕。</p>
+              <p class="tl">用假的 health 响应控制每个端口会报告谁。</p>
+              <p class="tl"><span class="term" data-definition="monkeypatch 是测试中临时替换函数、属性或环境值的工具；测试结束后会自动恢复。">monkeypatch</span> 负责安全替换。</p>
+              <p class="tl">建立端口到 health 的对应表。</p>
+              <p class="tl">5556 故意报告 fastfs。</p>
+              <p class="tl">5558 故意报告 sam3。</p>
+              <p class="tl">对应表结束。</p>
+              <p class="tl">假的 health 环境准备完成。</p>
+              <p class="tl">现在执行真正的判断。</p>
+              <p class="tl"><span class="term" data-definition="assert 是测试中的硬性判断：条件必须成立，否则测试失败。它把期望行为写成机器可检查的规则。">assert</span> status 返回 1，也就是必须拒绝交换端口。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_launcher_parse.py</span>
+            <pre><code><span class="code-line">def test_install_initializes_only_services_in_profile(tmp_path, monkeypatch):</span>
+<span class="code-line">    profile = _write(tmp_path, "services:\n  - name: sam3\n  - name: fastfs\n")</span>
+<span class="code-line">    initialized = []</span>
+<span class="code-line">    synced = []</span>
+<span class="code-line">    scripts = []</span>
+<span class="code-line">    monkeypatch.setattr(launcher, "_init_upstream", lambda spec: initialized.append(spec.service_id))</span>
+<span class="code-line">    monkeypatch.setattr(launcher, "_sync_one", lambda spec, extras: synced.append((spec.service_id, extras)))</span>
+<span class="code-line">    monkeypatch.setattr(</span>
+<span class="code-line">        launcher,</span>
+<span class="code-line">        "_run_runtime_script",</span>
+<span class="code-line">        lambda spec, script: scripts.append((spec.service_id, script)),</span>
+<span class="code-line">    )</span>
+<span class="code-line"></span>
+<span class="code-line">    launcher.install(Path(profile))</span>
+<span class="code-line"></span>
+<span class="code-line">    assert initialized == ["sam3", "fastfs"]</span>
+<span class="code-line">    assert synced == [("sam3", []), ("fastfs", [])]</span>
+<span class="code-line">    assert scripts == [("sam3", "install.sh"), ("fastfs", "install.sh")]</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义测试：install 只能初始化 profile 点名的服务。</p>
+              <p class="tl">写一份只包含 sam3 与 fastfs 的临时 profile。</p>
+              <p class="tl">准备清单，记录谁被初始化。</p>
+              <p class="tl">准备清单，记录谁被同步。</p>
+              <p class="tl">准备清单，记录谁运行了脚本。</p>
+              <p class="tl">把真实初始化替换成只记名字的 <span class="term" data-definition="mock 是测试用的替身：它模仿真实函数的接口，但只记录调用或返回预设结果，不执行昂贵操作。">mock</span>。</p>
+              <p class="tl">把真实同步也替换掉，并记录服务与 extras。</p>
+              <p class="tl">开始替换脚本执行函数。</p>
+              <p class="tl">替换目标属于 launcher。</p>
+              <p class="tl">目标是 runtime 脚本执行函数。</p>
+              <p class="tl"><span class="term" data-definition="lambda 是一行写完的小函数。这里它不运行脚本，只把收到的参数追加到记录清单。">lambda</span> 只记录服务与脚本。</p>
+              <p class="tl">第三个替身准备完成。</p>
+              <p class="tl">环境隔离完成。</p>
+              <p class="tl">对这份 profile 真正调用 install。</p>
+              <p class="tl">接下来检查三份飞行记录。</p>
+              <p class="tl">初始化顺序只能是 sam3、fastfs。</p>
+              <p class="tl">同步对象与 extras 必须完全一致。</p>
+              <p class="tl">脚本也只能为这两个服务各执行一次。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">第三份承诺：坏输入绝不能偷偷出网</h2>
+        <p>客户端验证失败时，最重要的证据不只是“抛了错误”，还包括网络请求一次都没有发生。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · test_graspgenx_client.py</span>
+            <pre><code><span class="code-line">calls = []</span>
+<span class="code-line">with GraspGenXClient(wait=False) as client:</span>
+<span class="code-line">    monkeypatch.setattr(client, "_request", lambda *args: calls.append(args))</span>
+<span class="code-line"></span>
+<span class="code-line">    with pytest.raises((TypeError, ValueError)):</span>
+<span class="code-line">        _call_inference(</span>
+<span class="code-line">            client,</span>
+<span class="code-line">            method_name,</span>
+<span class="code-line">            grasp_threshold=grasp_threshold,</span>
+<span class="code-line">            topk_num_grasps=topk_num_grasps,</span>
+<span class="code-line">        )</span>
+<span class="code-line"></span>
+<span class="code-line">assert calls == []</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">先准备空清单，专门记录网络请求。</p>
+              <p class="tl">打开一个不等待服务的 GraspGenXClient，并保证用完后正确关闭。</p>
+              <p class="tl">把 <code>_request</code> 换成记录器：若请求发生，参数就会进入 calls。</p>
+              <p class="tl">监控装好，开始执行故障场景。</p>
+              <p class="tl"><span class="term" data-definition="pytest.raises 是测试错误行为的工具：括号里的异常必须发生，否则测试失败。">pytest.raises</span> 要求坏输入产生 TypeError 或 ValueError。</p>
+              <p class="tl">调用统一的 inference 测试助手。</p>
+              <p class="tl">传入当前客户端。</p>
+              <p class="tl">传入要测试的方法名。</p>
+              <p class="tl">传入可能不合法的 grasp threshold。</p>
+              <p class="tl">传入可能不合法的 top-k 抓取数量。</p>
+              <p class="tl">调用参数准备完成。</p>
+              <p class="tl">异常检查范围结束。</p>
+              <p class="tl">最后证明 calls 仍为空：错误在本地被拦下，没有污染远端。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-steps stagger-children" aria-label="从故障到回归测试的闭环">
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">症</div>
+            <p>不合法参数</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">界</div>
+            <p>客户端验证</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">证</div>
+            <p>指定异常 + 零次请求</p>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-step animate-in">
+            <div class="flow-step-num">锁</div>
+            <p>以后谁改坏，测试立即报警</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">场景演练：资深工程师会先查什么？</h2>
+        <p>每题都只问“下一步最值钱的证据”。选完再检查思路，不需要背命令。</p>
+
+        <div class="quiz-container" id="module6-scenario-quiz">
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="对。连接都没建立，先确认门牌号和进程最省时间；模型日志此时还不会有这次请求。"
+               data-explanation-wrong="连接错误发生在请求进入服务之前。先用 status 和 endpoint 证据确认地址与进程，再深入模型层。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 1 · Connect error</span>
+              <p>新机器第一次调用 FastFS，立刻得到连接被拒绝，也没有 request_id。</p>
+            </div>
+            <h3 class="quiz-question">第一步做什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>直接修改 inference backend</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>运行 status，并核对 endpoint 与服务进程</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>先放宽响应 schema</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。协议不匹配说明网络已经通了，但身份或版本对不上；应比较配置目标与 health 元数据。"
+               data-explanation-wrong="这不是单纯的进程存活问题。status 已拿到响应，真正有价值的是核对它报告的服务身份与协议版本。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 2 · Protocol mismatch</span>
+              <p>status 能访问端口，但显示服务身份或协议不匹配。</p>
+            </div>
+            <h3 class="quiz-question">哪份证据最能继续缩小范围？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>对照 endpoint 配置与 health 中的 service、protocol</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>检查输入图像的每个像素</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>把客户端 timeout 无限调大</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。503 Busy 是服务主动保护容量的证据；先看 admission、并发与重试策略，不要误判成协议坏了。"
+               data-explanation-wrong="503 Busy 表示服务活着并明确拒绝新任务。下一步应检查容量证据与排队策略。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 3 · 503 Busy</span>
+              <p>低并发时成功，高并发时部分请求稳定返回 503，服务仍然 ready。</p>
+            </div>
+            <h3 class="quiz-question">下一步应聚焦哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>重新生成所有 runtime lock</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>删除 health 身份检查</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>查看 admission、并发上限、任务时长与重试</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="对。doctor 的 real marker mismatch 指向本机运行时状态；先比较 profile、lock、marker 的输入，再做针对性同步。"
+               data-explanation-wrong="这份证据来自 doctor，不是远端单次请求。先查本机 runtime 的 profile、lock 和 marker。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 4 · Real marker mismatch</span>
+              <p>远端 status 正常，但 doctor 报本机 real marker 与当前 lock 不一致。</p>
+            </div>
+            <h3 class="quiz-question">最合理的第一步是？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>修改服务端响应 dtype</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>比较本机 profile、lock、marker，再决定同步动作</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>增加客户端网络重试次数</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。request_id 是跨越客户端与服务端的线索；先找到同一次请求的 traceback，再判断 handler、输入适配还是 backend 出错。"
+               data-explanation-wrong="500 已经告诉你错误发生在服务端处理内部。用 request_id 找到对应 traceback，证据会比随机重启更精确。">
+            <div class="scenario-context">
+              <span class="scenario-label">场景 5 · Inference 500</span>
+              <p>一条真实推理请求返回 500，客户端错误对象里带有 request_id。</p>
+            </div>
+            <h3 class="quiz-question">怎样最快找到故障位置？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>按 request_id 搜服务端日志，阅读对应 traceback</span>
+              </button>
+              <button class="quiz-option" data-value="option-b" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>把 500 当成 busy 并无限重试</span>
+              </button>
+              <button class="quiz-option" data-value="option-c" onclick="selectOption(this)">
+                <div class="quiz-option-radio"></div>
+                <span>交换两个服务的端口再试一次</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" onclick="checkQuiz('module6-scenario-quiz')">检查调试思路</button>
+          <button class="quiz-reset-btn" onclick="resetQuiz('module6-scenario-quiz')">换条证据再想</button>
+        </div>
+
+        <h3>结课前：我能把一个新服务带到可运营状态</h3>
+        <div class="pattern-cards stagger-children" aria-label="新增服务掌握清单">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">1</div>
+            <h4 class="pattern-title">会分层</h4>
+            <p class="pattern-desc">我能用 status、doctor 和 typed exception 判断先查哪一层。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">2</div>
+            <h4 class="pattern-title">会留证</h4>
+            <p class="pattern-desc">我会保存状态码、异常类型、request_id 和原始输出。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">3</div>
+            <h4 class="pattern-title">会对线</h4>
+            <p class="pattern-desc">我能用 request_id 把客户端错误连到服务端 traceback。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">4</div>
+            <h4 class="pattern-title">会隔离</h4>
+            <p class="pattern-desc">我会用 fixture、mock 与 monkeypatch 做最小复现。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">5</div>
+            <h4 class="pattern-title">会守住</h4>
+            <p class="pattern-desc">修复后，我会加回归测试，让旧故障不再回来。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

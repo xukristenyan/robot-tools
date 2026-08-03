@@ -1,0 +1,49 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      # No submodules: tests run in fake mode and never touch runtimes/*/upstream.
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --python ${{ matrix.python-version }} --extra server
+      - run: uv run --python ${{ matrix.python-version }} --extra server pytest tests/ -q
+      - run: uv run --python ${{ matrix.python-version }} ruff check src tests
+      - run: uv run --python ${{ matrix.python-version }} ruff format --check src tests
+      - run: uv lock --check
+      - run: |
+          for service in sam3 fastfs graspgen graspgenx; do
+            uv lock --check --project "runtimes/${service}"
+          done
+      # The real lock intentionally points at an uninitialized SAM3 submodule.
+      # Fake CI verifies that it exists; selected real hosts validate freshness
+      # after `install` initializes only this upstream.
+      - run: uv lock --check-exists --project runtimes/sam3/real
+
+  client-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --no-dev
+      - run: |
+          uv run --no-dev python - <<'PY'
+          import importlib.util
+          import robot_tools
+          from robot_tools.services.sam3 import SAM3Client
+
+          assert importlib.util.find_spec("httpx") is not None
+          assert importlib.util.find_spec("fastapi") is None
+          assert importlib.util.find_spec("uvicorn") is None
+          print(robot_tools.__version__, SAM3Client.__name__)
+          PY

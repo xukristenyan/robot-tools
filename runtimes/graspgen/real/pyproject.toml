@@ -1,0 +1,72 @@
+[project]
+name = "robot-tools-graspgen-real-runtime"
+version = "0.1.0"
+description = "Locked inference environment for the original GraspGen diffusion service."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    # These are imported by the pinned inference path. The upstream package is
+    # intentionally not installed because its metadata also pulls training,
+    # visualization, USD, and demo dependencies into the service environment.
+    "addict",
+    "diffusers==0.11.1",
+    "h5py",
+    "huggingface-hub==0.25.2",
+    "imageio",
+    "meshcat",
+    "ninja>=1.11,<2",
+    "numpy==1.26.4",
+    "omegaconf",
+    "pointnet2-ops==3.0.0",
+    "robot-tools[server]",
+    "scikit-learn",
+    "scipy",
+    "setuptools>=45,<78",
+    "spconv-cu126==2.3.8",
+    "timm==1.0.15",
+    "torch==2.10.0",
+    "torch-scatter==2.1.2+pt210cu128",
+    "torchvision==0.25.0",
+    "tqdm",
+    "trimesh==4.5.3",
+    "webdataset",
+    "yourdfpy==0.0.56",
+]
+
+[tool.uv.sources]
+pointnet2-ops = { path = "../upstream/pointnet2_ops" }
+robot-tools = { path = "../../..", editable = true }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+find-links = ["https://data.pyg.org/whl/torch-2.10.0+cu128.html"]
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+# pointnet2_ops has no PEP 517 metadata and imports torch from setup.py. Give
+# uv enough static metadata to resolve without compiling, then build it in an
+# isolated environment against the exact torch selected above.
+[[tool.uv.dependency-metadata]]
+name = "pointnet2-ops"
+version = "3.0.0"
+requires-dist = ["torch>=1.4"]
+
+[tool.uv.extra-build-dependencies]
+pointnet2-ops = [
+    { requirement = "torch", match-runtime = true },
+    "setuptools<78",
+    "wheel",
+    "ninja",
+]

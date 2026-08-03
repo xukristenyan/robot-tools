@@ -1,29 +1,50 @@
-# Per-project service profile.
-#   robot-tools list                       # see all registered servers
-#   robot-tools sync   services.yaml       # install only what's listed below
-#   robot-tools setup  <name>              # one-time manual install (per server)
-#   robot-tools download <name>            # one-time weight fetch (per server)
-#   robot-tools launch services.yaml       # start them (auto-sync if missing)
+# Launch profile: which servers to run ON THIS MACHINE, and how.
+# Copy next to where you run the launcher (usually the GPU machine).
+# Clients connect via a separate endpoints.yaml (see endpoints.example.yaml) —
+# moving a server to another machine never touches this file.
 #
-# Defaults below use --mock so you can verify the wiring before any heavy
-# install. Drop the --mock flag once setup + download are done for that server.
+#   robot-tools list                       # see all registered service runtimes
+#   robot-tools sync                       # exact light/fake environments
+#   robot-tools install                    # only selected upstreams + real deps
+#   robot-tools download                   # only selected model artifacts
+#   robot-tools doctor                     # read-only local checks
+#   robot-tools launch                     # start selected HTTP servers
+#
+# `host:` is the interface the server listens on (same meaning as uvicorn
+# --host). It defaults to 127.0.0.1 (local clients only). For remote access,
+# prefer an SSH tunnel or a Tailscale interface. Use `host: 0.0.0.0` only on
+# a trusted, firewalled LAN; the service has no built-in TLS or authentication.
+#
+# Defaults below use --fake so you can verify wiring without upstreams, model
+# dependencies, or weights. Drop --fake after install + download.
 
 services:
   - name: graspgen
     port: 5557
-    host: 127.0.0.1
+    # host: 0.0.0.0                          # trusted/firewalled LAN only
     # gpu: 0                                 # CUDA_VISIBLE_DEVICES (omit for default GPU)
     # Real: ["--gripper", "franka_panda"]    (or robotiq_2f_85/140, single_suction_cup_30mm)
-    extra_args: ["--mock"]
+    extra_args: ["--fake"]
+
+  # GraspGenX has its own native cross-embodiment API: named grippers plus raw
+  # sweep-volume object/scene inference. Use GraspGenXClient, not GraspGenClient.
+  - name: graspgenx
+    port: 5559
+    # host: 0.0.0.0                          # trusted/firewalled LAN only
+    # gpu: 0                                 # CUDA_VISIBLE_DEVICES (omit for default GPU)
+    # Real: ["--default-gripper", "robotiq_2f_85"]
+    # The default is only a preload/fallback; each named infer request may
+    # select another gripper. Planner selection is per request.
+    extra_args: ["--fake"]
 
   - name: fastfs
     port: 5556
-    host: 127.0.0.1
+    # host: 0.0.0.0                          # trusted/firewalled LAN only
     # Real: ["--model", "23-36-37"]          (or 20-30-48 / 20-26-39 / 15-44-51 — smaller=faster)
-    extra_args: ["--mock"]
+    extra_args: ["--fake"]
 
   - name: sam3
     port: 5558
-    host: 127.0.0.1
+    # host: 0.0.0.0                          # trusted/firewalled LAN only
     # Real: []   (no extra args needed; needs `hf auth login` + access granted)
-    extra_args: ["--mock"]
+    extra_args: ["--fake"]

@@ -1,0 +1,369 @@
+<section class="module" id="module-4" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">04</span>
+      <h1 class="module-title">Fake 到 Real：一套 Runtime 的一生</h1>
+      <p class="module-subtitle">先在模拟器里跑通赛道，再为真实赛车装发动机、燃料与轮胎。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">为什么 sync 后 fake 能跑，real 却还不能？</h2>
+        <p>每个服务的 <span class="term" data-definition="runtime 是某项服务运行所需的一整套目录、环境和脚本；可以把它看成一辆赛车自己的维修区。">runtime</span> 有 light 与 real 两份锁定项目，却共用一个 <span class="term" data-definition="venv 是 Python 的独立虚拟环境；它把这个 runtime 的软件包与电脑上的其他项目隔开。">venv</span>。<span class="term" data-definition="uv 是负责安装、锁定并运行 Python 项目的工具；这里 sync 会把共享 venv 精确变成 lockfile 规定的样子。">uv</span> <code>sync</code> 只把“模拟赛车”准备好，真实模型还缺额外装备。</p>
+
+        <div class="pattern-cards stagger-children">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">0</div>
+            <h4 class="pattern-title">只有源码</h4>
+            <p class="pattern-desc">目录已经在，但共享 venv 还没被精确同步。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">1</div>
+            <h4 class="pattern-title">sync → LIGHT READY</h4>
+            <p class="pattern-desc"><span class="term" data-definition="lockfile 是记录每个软件包精确版本的锁定文件；它像统一配件清单，让不同电脑装出同一套环境。">lockfile</span> 对应的轻量环境就绪，fake 可以启动。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">2</div>
+            <h4 class="pattern-title">install + download → REAL READY</h4>
+            <p class="pattern-desc">真实<span class="term" data-definition="依赖是程序运行前必须安装的其他软件包；真实模型通常比 fake 多出 GPU、编译和模型相关依赖。">依赖</span>与模型文件齐全，检车贴也与当前锁一致。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">↺</div>
+            <h4 class="pattern-title">再次 sync → 回到 LIGHT</h4>
+            <p class="pattern-desc">sync 会先撕掉 <span class="term" data-definition="marker/hash 是证明真实环境与当前 lockfile 匹配的标记和指纹；像检车贴上写着这辆车、这套配置和检查日期。">marker/hash</span>，避免把已变化的 venv 误认成 real。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning animate-in">
+          <div class="callout-icon">🏁</div>
+          <div class="callout-content">
+            <strong class="callout-title">fake 只验证“方向盘和赛道”</strong>
+            <p><span class="term" data-definition="fake 模式用轻量假结果代替真实模型计算；它能验证配置、启动和请求链路，但不能评价真实模型效果。">fake</span> 成功说明链路连通，不代表真实模型质量、速度或显存占用已经通过。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">切开看：两份项目，共用一个 venv</h2>
+        <p><code>services.yaml</code> 中的<span class="term" data-definition="profile 是一次运行所选择的服务和参数集合；它是安装边界，没有选中的服务不会被顺手安装。">配置档</span>决定哪些 runtime 能进入赛道。点击三个图层，看 light、real 与共享环境各自装着什么。</p>
+
+        <div class="layer-demo animate-in">
+          <div class="layer-tabs">
+            <button class="layer-tab active" type="button" onclick="showLayer('m4-layer-light', this)">LIGHT 项目</button>
+            <button class="layer-tab" type="button" onclick="showLayer('m4-layer-real', this)">REAL 项目</button>
+            <button class="layer-tab" type="button" onclick="showLayer('m4-layer-shared', this)">共享 .venv</button>
+          </div>
+
+          <div class="layer-viewport">
+            <div class="layer" id="m4-layer-light" style="display:block">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">📄</div>
+                  <h4 class="pattern-title">light pyproject</h4>
+                  <p class="pattern-desc">只声明启动 fake 与公共工具所需的轻量包。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">🔒</div>
+                  <h4 class="pattern-title">light uv.lock</h4>
+                  <p class="pattern-desc">把轻量环境的精确版本锁住，供 <code>sync --locked</code> 使用。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+                  <div class="pattern-icon" style="background: var(--color-actor-2)">🕹️</div>
+                  <h4 class="pattern-title">fake server branch</h4>
+                  <p class="pattern-desc">server 直接返回可预测的假结果，不导入真实 backend，只验证请求链路。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="layer" id="m4-layer-real" style="display:none">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🧰</div>
+                  <h4 class="pattern-title">real project + scripts</h4>
+                  <p class="pattern-desc">安装真实依赖，运行安装、下载与检查脚本。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🔗</div>
+                  <h4 class="pattern-title"><span class="term" data-definition="upstream 是 robot-tools 依赖的外部原始项目；services.yaml 没选中的服务，不应拉取它的上游代码。">upstream</span> / <span class="term" data-definition="submodule 是主仓库记录的另一个仓库引用；像需要时才取来的可选零件箱。">submodule</span></h4>
+                  <p class="pattern-desc">只为选中的真实服务准备外部源码。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+                  <div class="pattern-icon" style="background: var(--color-actor-5)">🧠</div>
+                  <h4 class="pattern-title"><span class="term" data-definition="checkpoint 是模型训练后保存的参数文件，也常叫模型权重；它通常体积很大，需要单独下载。">checkpoint</span></h4>
+                  <p class="pattern-desc">真实推理要读取的模型文件，不会由 light sync 自动下载。</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="layer" id="m4-layer-shared" style="display:none">
+              <div class="pattern-cards">
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🏎️</div>
+                  <h4 class="pattern-title">一套共享 .venv</h4>
+                  <p class="pattern-desc">light 与 real 不各养一套环境；后一次精确同步会改变同一辆车。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🏷️</div>
+                  <h4 class="pattern-title">real marker</h4>
+                  <p class="pattern-desc">只有真实安装与当前锁匹配时，检车贴才可信。</p>
+                </div>
+                <div class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+                  <div class="pattern-icon" style="background: var(--color-actor-4)">🩺</div>
+                  <h4 class="pattern-title">doctor preflight</h4>
+                  <p class="pattern-desc">真实启动前由你主动运行；它读取环境状态并报告贴纸缺失或过期，launch 本身不会代跑 doctor。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="layer-description" id="m4-layer-desc">LIGHT 项目只保证假服务能跑；切换上方按钮查看真实装备与共享环境。</p>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">维修区地图：八类文件各管一件事</h2>
+        <p>名字很多，但职责并不乱。把故障现象对准负责的文件，比重复运行所有命令更快。</p>
+
+        <div class="pattern-cards stagger-children">
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">📋</div>
+            <h4 class="pattern-title"><code>pyproject.toml</code></h4>
+            <p class="pattern-desc">声明项目、依赖与可选 extras，回答“要装哪些包”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🔒</div>
+            <h4 class="pattern-title"><code>uv.lock</code></h4>
+            <p class="pattern-desc">锁住精确版本，回答“每个包究竟装哪一版”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">🔧</div>
+            <h4 class="pattern-title"><code>install.sh</code></h4>
+            <p class="pattern-desc">准备真实源码、系统构建与服务专属依赖；应尽量<span class="term" data-definition="幂等表示同一个操作重复执行，最终状态仍然一致；和 AI 协作时可以说“让安装脚本保持幂等”。">幂等</span>，方便失败后重跑。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">⬇️</div>
+            <h4 class="pattern-title"><code>download.sh</code></h4>
+            <p class="pattern-desc">下载 checkpoint 等大文件，回答“模型文件到齐了吗”。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🩺</div>
+            <h4 class="pattern-title"><code>doctor.py</code></h4>
+            <p class="pattern-desc">进行<span class="term" data-definition="只读检查只查看并报告状态，不主动修改文件或安装软件；适合先收集证据再决定修复方式。">只读检查</span>，把缺包、缺权重或标记问题说清楚。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-info)">
+            <div class="pattern-icon" style="background: var(--color-info)">🌐</div>
+            <h4 class="pattern-title"><code>upstream/</code></h4>
+            <p class="pattern-desc">放外部项目源码，只初始化 profile 选中的服务。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-accent)">
+            <div class="pattern-icon" style="background: var(--color-accent)">🩹</div>
+            <h4 class="pattern-title"><code>compat/</code></h4>
+            <p class="pattern-desc">保存<span class="term" data-definition="兼容补丁是为了解决版本或平台差异而做的小范围修改；像给不完全合尺寸的零件加转接片。">兼容补丁</span>，让上游代码适配当前设备和依赖。</p>
+          </div>
+          <div class="pattern-card animate-in" style="border-top: 3px solid var(--color-error)">
+            <div class="pattern-icon" style="background: var(--color-error)">⚠️</div>
+            <h4 class="pattern-title"><code><span class="term" data-definition="PREREQUISITES 是运行前要由人准备的前置条件清单，例如驱动、编译器或系统库。">PREREQUISITES</span></code></h4>
+            <p class="pattern-desc">列出脚本无法替你解决的系统、硬件或驱动要求。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">sync 会主动撕掉旧检车贴</h2>
+        <p>light 与 real 共用 venv，所以“曾经 install 成功”不能永久作数。代码先清除 real marker，再按当前 lock 精确同步；就算同步中途失败，也不会留下虚假的“可跑 real”状态。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def _sync_one(spec: ServiceRuntimeSpec, extras: list[str]) -&gt; None:</span>
+<span class="code-line">    # The lightweight and real projects intentionally share one .venv. Clear</span>
+<span class="code-line">    # the real marker before exact sync starts because even a failed sync may</span>
+<span class="code-line">    # have partially removed real-only packages.</span>
+<span class="code-line">    clear_real_install(spec.runtime_dir)</span>
+<span class="code-line">    cmd = ["uv", "sync", "--locked"]</span>
+<span class="code-line">    for e in extras:</span>
+<span class="code-line">        cmd.extend(["--extra", e])</span>
+<span class="code-line">    extras_str = " ".join(f"--extra {e}" for e in extras) or "(no extras)"</span>
+<span class="code-line">    logger.info("[sync] %s: uv sync --locked %s (cwd=%s)", spec.service_id, extras_str, spec.runtime_dir)</span>
+<span class="code-line">    env = os.environ.copy()</span>
+<span class="code-line">    env.pop("VIRTUAL_ENV", None)</span>
+<span class="code-line">    subprocess.run(cmd, cwd=spec.runtime_dir, env=env, check=True)</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">这个<span class="term" data-definition="函数是一段可以按名字调用的操作；_sync_one 负责把一个服务 runtime 同步到精确状态。">函数</span>接收一项服务规格和可选 extras。</p>
+              <p class="tl">注释说明 light 与 real 故意共用一套 venv。</p>
+              <p class="tl">即使 sync 失败，也可能已经删掉一部分 real 专用包。</p>
+              <p class="tl">因此第一步就清除 real 检车贴，绝不让旧状态冒充成功。</p>
+              <p class="tl">准备 <code>uv sync --locked</code>，要求严格服从锁定版本。</p>
+              <p class="tl">把 profile 选中的每个 extra 加入命令。</p>
+              <p class="tl">把 extras 整理成可读文字，方便日志说明这次同步了什么。</p>
+              <p class="tl">记录服务、extras 与工作目录，排错时能还原现场。</p>
+              <p class="tl">复制<span class="term" data-definition="环境变量是操作系统传给程序的名称和值；它们会影响程序在哪里寻找工具和环境。">环境变量</span>，再移除外部 <code>VIRTUAL_ENV</code> 干扰。</p>
+              <p class="tl">在当前 runtime 目录执行命令；只要失败就立即报告。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="screen-subheading">install 也只服从选择边界</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def install(config_path: Path) -&gt; None:</span>
+<span class="code-line">    """Initialize and install only the service runtimes selected by a profile."""</span>
+<span class="code-line">    for spec, svc in _parse_services(config_path):</span>
+<span class="code-line">        _init_upstream(spec)</span>
+<span class="code-line">        _sync_one(spec, svc.extras)</span>
+<span class="code-line">        _run_runtime_script(spec, "install.sh")</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><code>install</code> 接收配置路径，目标写得很清楚：只安装 profile 选中的 runtime。</p>
+              <p class="tl">逐项读取 <code>services.yaml</code> 里真正选中的服务。</p>
+              <p class="tl">只为这一项初始化上游，再把共享 venv 精确同步。</p>
+              <p class="tl">最后运行这一项自己的 <code>install.sh</code>，没有入选的服务不会经过这里。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">doctor 是启动前体检：贴纸不对就先别发车</h2>
+        <p>真实启动前，应主动运行 <span class="term" data-definition="doctor 是一组只读诊断检查；它像赛前验车员，只报告缺少什么，不替你偷偷改装。">doctor</span>，确认 marker 属于当前锁定环境。marker 不存在时，它返回可操作的诊断，而不是把 light 环境当成 real；当前 launch 不会自动替你执行这项体检。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">def validate_real_install(runtime_dir: str | Path) -&gt; str | None:</span>
+<span class="code-line">    """Return a diagnostic when the venv is not marked for the current lock."""</span>
+<span class="code-line">    runtime_dir = Path(runtime_dir).resolve()</span>
+<span class="code-line">    marker = real_install_marker(runtime_dir)</span>
+<span class="code-line">    if not marker.is_file():</span>
+<span class="code-line">        return "real environment is not installed (run install)"</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">检查指定 runtime 的 real 安装状态；正常时没有诊断文字。</p>
+              <p class="tl">先把目录变成明确的<span class="term" data-definition="绝对路径是从磁盘根位置开始写出的完整地址；它避免同一目录因相对写法不同而被认错。">绝对路径</span>。</p>
+              <p class="tl">计算这个 runtime 应该拥有的 marker 位置。</p>
+              <p class="tl">如果 marker 文件不存在，就明确告诉你先运行 <code>install</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 class="screen-subheading">点击追踪：同一份选择，分成两条路线</h3>
+        <div class="flow-animation animate-in" id="m4-runtime-flow" data-steps='[
+          {"highlight":"flow-actor-m4-profile","label":"1. services.yaml 选出本次允许处理的 runtime"},
+          {"highlight":"flow-actor-m4-light","label":"2. LIGHT 路线：sync 按轻量 lock 精确准备共享 venv","packet":true,"from":"actor-m4-profile","to":"actor-m4-light"},
+          {"highlight":"flow-actor-m4-fake","label":"3. fake launch：验证配置、端口与请求链路，不验证模型质量","packet":true,"from":"actor-m4-light","to":"actor-m4-fake"},
+          {"highlight":"flow-actor-m4-profile","label":"4. 需要真实模型时，回到同一份选择边界","packet":true,"from":"actor-m4-fake","to":"actor-m4-profile"},
+          {"highlight":"flow-actor-m4-install","label":"5. REAL 路线：install 初始化选中 upstream、同步并运行安装脚本","packet":true,"from":"actor-m4-profile","to":"actor-m4-install"},
+          {"highlight":"flow-actor-m4-download","label":"6. download 只取得选中服务的 checkpoint","packet":true,"from":"actor-m4-install","to":"actor-m4-download"},
+          {"highlight":"flow-actor-m4-doctor","label":"7. doctor 只读检查依赖、模型文件与 marker","packet":true,"from":"actor-m4-download","to":"actor-m4-doctor"},
+          {"highlight":"flow-actor-m4-real","label":"8. 检查通过后，real launch 才进入真实推理","packet":true,"from":"actor-m4-doctor","to":"actor-m4-real"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-actor-m4-profile"><div class="flow-actor-icon">🎟️</div><span>选中 profile</span></div>
+            <div class="flow-actor" id="flow-actor-m4-light"><div class="flow-actor-icon">🔒</div><span>light sync</span></div>
+            <div class="flow-actor" id="flow-actor-m4-fake"><div class="flow-actor-icon">🕹️</div><span>fake launch</span></div>
+            <div class="flow-actor" id="flow-actor-m4-install"><div class="flow-actor-icon">🔧</div><span>install</span></div>
+            <div class="flow-actor" id="flow-actor-m4-download"><div class="flow-actor-icon">⬇️</div><span>download</span></div>
+            <div class="flow-actor" id="flow-actor-m4-doctor"><div class="flow-actor-icon">🩺</div><span>doctor</span></div>
+            <div class="flow-actor" id="flow-actor-m4-real"><div class="flow-actor-icon">🏎️</div><span>real launch</span></div>
+          </div>
+          <div class="flow-packet" id="m4-flow-packet"></div>
+          <div class="flow-step-label" id="m4-flow-label">点击“下一步”选择一条运行路线</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">赛道突发状况：你会怎么处理？</h2>
+        <p>下面不考文件名背诵，只考怎样根据状态缩小问题。选好后一次查看每道题的解释。</p>
+
+        <div class="quiz-container" id="m4-quiz-runtime">
+          <div class="quiz-question-block"
+               data-correct="m4-q1-b"
+               data-explanation-right="正是这样：sync 会先清除 real marker，并可能移除 real 专用包。要跑 real，应重新 install，再让 doctor 确认当前状态。"
+               data-explanation-wrong="再看共享 venv 的关键：sync 改的是同一套环境，而且会主动撕掉旧 marker，所以过去的 install 不能继续当通行证。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 1 · install 后又 sync</span><p>昨天 real 模型能跑，今天为了测试 fake 又执行了 sync。现在想切回 real，最稳妥的下一步是什么？</p></div>
+              <h3 class="quiz-question">你会选择哪条恢复路线？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q1-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>旧 marker 应该还有效，直接 real launch</span></button>
+                <button class="quiz-option" data-value="m4-q1-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新运行所选服务的 install，再用 doctor 检查后启动</span></button>
+                <button class="quiz-option" data-value="m4-q1-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>删除 services.yaml，让程序自动猜服务</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q2-c"
+               data-explanation-right="对：fake 不读取真实 checkpoint，所以它成功并不能排除缺权重。为选中服务执行 download，再让 doctor 检查最有针对性。"
+               data-explanation-wrong="别被 fake 成功误导：它只证明请求链路。真实模型特有的大文件由 download 准备，缺少时应沿这条支线处理。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 2 · 缺少模型权重</span><p>fake 调用一直成功，real 启动却报告找不到 checkpoint；代码和 Python 包都已安装。</p></div>
+              <h3 class="quiz-question">哪个动作最对症？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q2-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>继续 sync light 环境，直到报错消失</span></button>
+                <button class="quiz-option" data-value="m4-q2-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>因为 fake 成功，所以忽略权重报错直接启动</span></button>
+                <button class="quiz-option" data-value="m4-q2-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>为选中服务运行 download，再用 doctor 验证文件</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q3-a"
+               data-explanation-right="没错：services.yaml 就是选择边界。install 遍历解析出来的选中服务，只初始化它们的 upstream 并运行各自脚本。"
+               data-explanation-wrong="目标是控制成本，而不是把所有服务都准备好。让 profile 只列出两项，install 的遍历自然就停在这两项。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 3 · 机器只需要两个服务</span><p>仓库支持很多模型，但这台工作站只会运行其中两个，你也不想下载其他 upstream。</p></div>
+              <h3 class="quiz-question">怎样把安装范围锁住？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q3-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span><code>services.yaml</code> 只列这两个服务，再对它运行 install 和 download</span></button>
+                <button class="quiz-option" data-value="m4-q3-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先安装所有服务，再手工删除不需要的目录</span></button>
+                <button class="quiz-option" data-value="m4-q3-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>把所有服务都设成同一个端口</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="m4-q4-b"
+               data-explanation-right="很好：移动目录后先让 doctor 根据新位置和当前 lock 重新判断，不要凭旧成功记录猜测。若 marker 无效，就重新 install，并按需 download。"
+               data-explanation-wrong="文件夹移动后，最可靠的是检查新位置的实际状态。doctor 是只读入口；它报告 marker 或 lock 不匹配时，再做有针对性的安装。">
+            <div class="scenario-block">
+              <div class="scenario-context"><span class="scenario-label">情境 4 · runtime 文件夹搬家</span><p>你把 runtime 目录迁到新磁盘，记得它以前安装成功，但不确定 marker 和当前 lock 是否仍可信。</p></div>
+              <h3 class="quiz-question">第一步应该做什么？</h3>
+              <div class="quiz-options">
+                <button class="quiz-option" data-value="m4-q4-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>相信旧记录，跳过所有检查直接 real launch</span></button>
+                <button class="quiz-option" data-value="m4-q4-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>在新位置运行 doctor；若 marker 无效，再重新 install</span></button>
+                <button class="quiz-option" data-value="m4-q4-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>只改文件夹名字，让 marker 自动变新</span></button>
+              </div>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('m4-quiz-runtime')">查看每题解释</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('m4-quiz-runtime')">重新判断</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">一条可靠的运行原则</strong>
+            <p>profile 管范围，lock 管版本，marker 管可信状态；fake 验链路，doctor 验真实环境。</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

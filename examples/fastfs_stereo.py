@@ -4,17 +4,17 @@ The server returns raw disparity in pixels; conversion to metric depth is
 camera-specific so the client SDK ships a `disparity_to_depth` helper that
 takes your intrinsics + baseline.
 """
+
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 
 import numpy as np
+from _config import load_endpoint, load_params
 from PIL import Image
 
-from robot_tools.clients.fastfs import FastFSClient, disparity_to_depth
-
-from _config import load_params, load_service
+from robot_tools.services.fastfs import FastFSClient, disparity_to_depth
 
 
 def load_image(path: Path) -> np.ndarray:
@@ -33,13 +33,13 @@ def main() -> None:
     left = load_image(args.left)
     right = load_image(args.right)
 
-    host, port = load_service("fastfs")
-    client = FastFSClient(host=host, port=port)
-    resp = client.reconstruct(
-        left, right,
-        valid_iters=params["valid_iters"],
-        max_disp=params["max_disp"],
-    )
+    with FastFSClient.from_endpoint(load_endpoint("fastfs")) as client:
+        resp = client.reconstruct(
+            left,
+            right,
+            valid_iters=params["valid_iters"],
+            max_disp=params["max_disp"],
+        )
 
     disp = resp.disparity
     print(f"disparity: shape={disp.shape} min={disp.min():.2f} max={disp.max():.2f}")

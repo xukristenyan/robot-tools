@@ -1,0 +1,424 @@
+<section class="module" id="module-5" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">05</span>
+      <h1 class="module-title">亲手增加一个新 Service</h1>
+      <p class="module-subtitle">用一套可检查的施工顺序，把 foo 视觉模型接成官方扩展包。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in" aria-labelledby="module5-screen-1">
+        <h2 class="screen-heading" id="module5-screen-1">先固定积木接口，再装机器</h2>
+        <p>假设明天要接入一个名为 foo 的新视觉模型。这里的 <span class="term" data-definition="Service（服务）是能独立启动、通过约定接口接收请求并返回结果的程序单元。">Service</span> 不是“复制一个目录再改名字”，而是一条从接口到验收的施工线。</p>
+
+        <div class="flow-animation" id="m5-flow-service-build" data-steps='[
+          {"highlight":"flow-m5-actor-1","label":"第 1 步：固定上游源码版本，先知道模型从哪里来"},
+          {"highlight":"flow-m5-actor-2","label":"第 2 步：先定义 foo 的身份、动作、请求与响应","packet":true,"from":"m5-actor-1","to":"m5-actor-2"},
+          {"highlight":"flow-m5-actor-3","label":"第 3 步：client 声明兼容版本，并从包入口导出","packet":true,"from":"m5-actor-2","to":"m5-actor-3"},
+          {"highlight":"flow-m5-actor-4","label":"第 4 步：runtime 安装重依赖，server 接线，backend 驱动真实模型","packet":true,"from":"m5-actor-3","to":"m5-actor-4"},
+          {"highlight":"flow-m5-actor-5","label":"第 5 步：registry 登记目录、启动命令和不冲突的端口","packet":true,"from":"m5-actor-4","to":"m5-actor-5"},
+          {"highlight":"flow-m5-actor-6","label":"第 6 步：补 endpoint 样例、使用示例与安装排错文档","packet":true,"from":"m5-actor-5","to":"m5-actor-6"},
+          {"highlight":"flow-m5-actor-7","label":"第 7 步：无 GPU 跑 fake 测试，有设备再跑 real probe","packet":true,"from":"m5-actor-6","to":"m5-actor-7"}
+        ]'>
+          <div class="flow-actors" aria-label="新增服务七步施工线">
+            <div class="flow-actor" id="flow-m5-actor-1">
+              <div class="flow-actor-icon">🧱</div>
+              <span>上游源码</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-2">
+              <div class="flow-actor-icon">📐</div>
+              <span>contract</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-3">
+              <div class="flow-actor-icon">🎛️</div>
+              <span>client / export</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-4">
+              <div class="flow-actor-icon">🏭</div>
+              <span>runtime</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-5">
+              <div class="flow-actor-icon">🗂️</div>
+              <span>registry</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-6">
+              <div class="flow-actor-icon">📝</div>
+              <span>配置 / 文档</span>
+            </div>
+            <div class="flow-actor" id="flow-m5-actor-7">
+              <div class="flow-actor-icon">✅</div>
+              <span>fake / real 验收</span>
+            </div>
+          </div>
+
+          <div class="flow-packet" id="flow-m5-packet"></div>
+          <div class="flow-step-label" id="flow-m5-label">点击“下一步”，开始组装 foo</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="callout callout-accent">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong class="callout-title">先 contract，后实现</strong>
+            <p><span class="term" data-definition="contract 是调用双方共同遵守的数据约定：服务叫什么、能做什么、请求和响应长什么样。">contract</span> 像积木接口尺寸。尺寸先稳定，<span class="term" data-definition="client 是主动发请求的一方；它把调用者的数据整理好，再送给远端服务。">client</span> 和 <span class="term" data-definition="server 是接收并处理请求的一方；它按 contract 分派工作，再返回响应。">server</span> 才能独立施工又准确扣合。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-2">
+        <h2 class="screen-heading" id="module5-screen-2">读懂一个已经接好的扩展包</h2>
+        <p>foo 还不存在，所以先把 fastfs 当作参照物。看清三处接缝：contract 定规则，client 声明自己听得懂，server 把规则接到实现。</p>
+
+        <h3>① contract：身份、动作与数据形状</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/services/fastfs/contract.py</span>
+            <pre><code>SERVICE_ID = "fastfs"
+API_VERSION = "1"
+ACTIONS = frozenset({"reconstruct"})
+
+class ReconstructRequest(BaseRequest):
+    action: Literal["reconstruct"] = "reconstruct"
+    left: np.ndarray  # (H, W, 3) uint8 or (H, W) gray; client coerces to HxWx3 uint8
+    right: np.ndarray  # same shape as left
+    # Per-call refinement knobs; None => use server's startup defaults.
+    valid_iters: int | None = None
+    max_disp: int | None = None
+
+class ReconstructResponse(BaseResponse):
+    disparity: np.ndarray  # (H, W) float32, in pixels — depth = K_fx * baseline / disp</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">服务身份证写着 fastfs；它说第 1 版<span class="term" data-definition="API 是两个程序约定好的沟通方式；API 版本说明当前使用的是哪一版约定。">API</span>，只接受 reconstruct 动作。</p>
+              <p class="tl">定义“重建请求”这种数据结构。</p>
+              <p class="tl"><span class="term" data-definition="Literal 表示一个值只能从写明的固定选项中选择。这里 action 只能是 reconstruct，不能随意拼写。">Literal</span> 把动作锁定为 reconstruct；调用者不能传别的词。</p>
+              <p class="tl">left 和 right 是左右图；client 会把灰度图整理成统一的三通道 <span class="term" data-definition="NumPy 数组是 Python 中存放多维数字数据的常用结构；图像常表示为高 × 宽 × 通道。">NumPy 数组</span>。</p>
+              <p class="tl">注释说明下面两个旋钮每次调用都能改；传 None 就使用服务启动时的默认值。</p>
+              <p class="tl">valid_iters 和 max_disp 都是可选整数。</p>
+              <p class="tl">响应只承诺返回 disparity 数组，并把尺寸、类型和单位写清楚。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>② client：公开兼容承诺</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/services/fastfs/client.py</span>
+            <pre><code>class FastFSClient(BaseClient):
+    SUPPORTED_SERVICE_APIS: ClassVar[dict[str, frozenset[str]]] = {SERVICE_ID: frozenset({API_VERSION})}
+    REQUIRED_ACTIONS = ACTIONS</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">FastFSClient 复用所有服务共有的基础 client 能力。</p>
+              <p class="tl">它公开声明“我支持 fastfs 的这一版 API”，并要求服务至少提供 contract 列出的全部动作。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>③ server：同一入口，<span class="term" data-definition="fake 模式不加载真实模型，而是返回形状正确的可预测结果，用来快速验证接线和 contract。">fake</span> 与 <span class="term" data-definition="real 模式会真正加载模型并执行推理，因此需要实际依赖、资源和硬件。">real</span> 两条路</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · runtimes/fastfs/server.py</span>
+            <pre><code>@handler(ReconstructRequest)
+def reconstruct(self, req: ReconstructRequest) -> ReconstructResponse:
+    if self._fake:
+        H, W = req.left.shape[:2]
+        return ReconstructResponse(disparity=np.zeros((H, W), dtype=np.float32))
+
+    disp, _timings = self.backend.infer(
+        req.left,
+        req.right,
+        valid_iters=req.valid_iters,
+        max_disp=req.max_disp,
+    )
+    return ReconstructResponse(disparity=disp)</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl"><span class="term" data-definition="装饰器（decorator）是在函数外面加一层标记或能力。这里的 @handler 表示：收到这种请求时，请调用下面这个函数。">装饰器</span>把 ReconstructRequest 接到 reconstruct 函数。</p>
+              <p class="tl">函数承诺：输入是重建请求，输出是重建响应。</p>
+              <p class="tl">fake 模式不加载真实模型，只按输入图片尺寸造一张全零结果。</p>
+              <p class="tl">这样普通开发机也能快速验证请求、响应和网络接线。</p>
+              <p class="tl">real 模式把左右图和每次调用的选项交给 backend 推理。</p>
+              <p class="tl">backend 返回结果与计时；这里只需要 disparity。</p>
+              <p class="tl">最后用 contract 规定的响应类型把真实结果送回去。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-3">
+        <h2 class="screen-heading" id="module5-screen-3">foo 的施工单：文件一个都别漏</h2>
+        <p>下面是新增服务的最小完整清单。文件名可以参考现有服务，责任边界不能靠复制猜出来。</p>
+
+        <div class="step-cards" aria-label="新增 foo 服务七步文件清单">
+          <article class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <strong>固定上游来源</strong>
+              <p><code>runtimes/foo/upstream/</code> 放固定版本的<span class="term" data-definition="上游（upstream）是这个项目接入的外部原始项目。固定它的版本，能避免对方更新后你的服务突然失效。">上游</span>源码；若用 <span class="term" data-definition="Git submodule 会在当前仓库中记录另一个仓库的精确版本，像在施工单上钉住指定批次的零件。">Git submodule</span>，同步登记根目录的 <code>.gitmodules</code>。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <strong>先建公开契约</strong>
+              <p><code>src/robot_tools/services/foo/contract.py</code> 定义 <code>SERVICE_ID</code>、<code>API_VERSION</code>、<code>ACTIONS</code>、请求和响应；这里不 import 重型模型库。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <strong>补 client 与导出入口</strong>
+              <p><code>client.py</code> 做方便调用与输入整理；<code>__init__.py</code> 对外<span class="term" data-definition="导出（export）是决定包外部可以直接 import 哪些名字。新增类后若忘了导出，文件虽然存在，用户仍可能找不到它。">导出</span> FooClient、请求和响应类型。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <strong>搭好独立 <span class="term" data-definition="runtime 是服务真正运行所需的独立环境，包含模型实现、重型依赖与启动程序。">runtime</span></strong>
+              <p><code>runtimes/foo/server.py</code> 接请求，<code>backend.py</code> 既加载真实模型，也做统一<span class="term" data-definition="适配器（adapter）把一种接口翻译成另一种接口，像转接头。这里用它把上游模型接到 robot-tools 的统一 contract。">适配器</span>；根 <code>pyproject.toml + uv.lock</code> 锁定轻量 fake 环境，<code>real/pyproject.toml + real/uv.lock</code> 单独锁定真实重依赖。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body">
+              <strong>让安装与诊断可重复</strong>
+              <p><code>install.sh</code>、<code>download.sh</code>、<code>doctor.py</code>、可选 <code>compat/</code> 分别管环境、资源、诊断和兼容；安装/下载<span class="term" data-definition="可执行脚本是能直接运行的自动化文件。创建后要保留执行权限，否则内容正确也会出现 permission denied。">可执行脚本</span>要保留执行权限，并补 <code>README.md</code>、<code>PREREQUISITES.md</code>。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">6</div>
+            <div class="step-body">
+              <strong>登记启动与连接资料</strong>
+              <p><code>src/robot_tools/registry.py</code> 这份<span class="term" data-definition="注册表（registry）是‘服务名 → 运行资料’的集中清单，让启动器知道目录、命令和默认端口。">注册表</span>登记 foo 的 runtime 目录、启动命令、<span class="term" data-definition="GPU 是擅长并行计算的图形处理器，许多视觉模型用它加速推理。">GPU</span> 要求和唯一默认<span class="term" data-definition="端口（port）像一栋电脑大楼中的房间号；不同服务同时运行时不能占用同一个房间号。">端口</span>；<code>services.example.yaml</code> 补启动 profile，<code>endpoints.example.yaml</code> 补调用方的 <span class="term" data-definition="endpoint 是客户端连接服务的网络地址，通常由 host 和 port 组成。">endpoint</span> 样例。</p>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-num">7</div>
+            <div class="step-body">
+              <strong>留下用法与证据</strong>
+              <p><code>examples/</code> 给最小调用，<code>tests/</code> 覆盖 contract、client、fake server 和真实探针，<code>docs/</code> 写安装、版本、排错与限制。</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-4">
+        <h2 class="screen-heading" id="module5-screen-4">分拣挑战：这段代码属于谁？</h2>
+        <p>把每张提案卡拖到它真正负责的层。判断依据是“变化的原因”，不是哪一份现有文件看起来最好复制。</p>
+
+        <div class="dnd-container" id="m5-dnd-service-parts">
+          <div class="dnd-chips" aria-label="待分配代码提案">
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-contract">稳定的请求字段、响应字段与 API 版本</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-client">把常见输入整理成 contract 接受的数组</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-server">handler 路由与 fake / real 分支</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-backend">上游模型预处理、推理与输出适配</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-install">下载权重、创建环境、检查兼容性</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-registry">runtime 目录、启动命令、GPU 与默认端口</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m5-downstream">某一款相机对象到通用图像数组的转换</div>
+          </div>
+
+          <div class="dnd-zones">
+            <div class="dnd-zone" data-correct="m5-contract">
+              <p class="dnd-zone-label">contract</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-client">
+              <p class="dnd-zone-label">client</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-server">
+              <p class="dnd-zone-label">server</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-backend">
+              <p class="dnd-zone-label">backend</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-install">
+              <p class="dnd-zone-label">install / download / doctor / compat</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-registry">
+              <p class="dnd-zone-label">registry</p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+            <div class="dnd-zone" data-correct="m5-downstream">
+              <p class="dnd-zone-label"><span class="term" data-definition="downstream 是使用这个 SDK 的下游应用。只属于某款相机或某个产品的规则放在下游，避免污染所有服务的公共接口。">downstream 应用</span></p>
+              <div class="dnd-zone-target">Drop here</div>
+            </div>
+          </div>
+
+          <div class="dnd-actions">
+            <button class="quiz-check-btn" type="button" onclick="checkDnD('m5-dnd-service-parts')">检查分工</button>
+            <button class="quiz-reset-btn" type="button" onclick="resetDnD('m5-dnd-service-parts')">重新分配</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-5">
+        <h2 class="screen-heading" id="module5-screen-5">“完成”不是文件齐了，而是证据齐了</h2>
+        <p>下面这份完成定义可以直接放进任务单。它把“看起来能跑”变成别人也能复查的结果。</p>
+
+        <div class="pattern-cards" aria-label="新增服务完成定义">
+          <article class="pattern-card">
+            <div class="pattern-icon">📏</div>
+            <h3 class="pattern-title">契约稳定</h3>
+            <p class="pattern-desc">service id、API version、actions、字段形状/类型/单位明确；关键<span class="term" data-definition="不变量（invariant）是无论走哪条代码路径都必须成立的规则，例如 fake 和 real 都返回同样形状、类型的响应。">不变量</span>在 fake 与 real 路径一致。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🪶</div>
+            <h3 class="pattern-title">边界干净</h3>
+            <p class="pattern-desc">公共 <span class="term" data-definition="SDK 是给其他程序调用的一套现成工具。这里的公共 SDK 应保持轻量，让调用者无需安装模型运行环境。">SDK</span> client 不 import 模型库；Torch、CUDA 和上游依赖只留在 <code>runtimes/foo</code>。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🔧</div>
+            <h3 class="pattern-title">安装可重复</h3>
+            <p class="pattern-desc">新环境按文档可安装；锁文件同步；脚本有执行权限；下载重复运行不会破坏已有资源。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🚦</div>
+            <h3 class="pattern-title">登记无冲突</h3>
+            <p class="pattern-desc">registry、endpoint 样例和文档中的 service id / port 一致，默认端口不与现有服务相撞。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🧪</div>
+            <h3 class="pattern-title">两级验证</h3>
+            <p class="pattern-desc">fake 测试在无 GPU 环境通过；<span class="term" data-definition="real probe 是在真实模型和硬件上做的小型冒烟验证，用少量输入确认安装、加载、推理和返回路径确实连通。">real probe</span> 在支持的机器上得到合理结果。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🧾</div>
+            <h3 class="pattern-title">验收可复查</h3>
+            <p class="pattern-desc"><span class="term" data-definition="验收测试（acceptance test）从使用者角度检查需求是否完成，例如启动 foo、发一个请求并得到符合 contract 的响应。">验收测试</span>、运行命令、输出摘要、限制与未验证项全部写明。</p>
+          </article>
+        </div>
+
+        <h3>可复用 AI Prompt</h3>
+        <div class="scenario-block" aria-label="新增服务 AI 提示词模板">
+          <div class="scenario-context">
+            <span class="scenario-label">复制后替换大括号内容</span>
+            <p><strong>目标：</strong>为 robot-tools 新增 <code>{SERVICE}</code>，主要动作是 <code>{ACTION}</code>，参考 <code>{REFERENCE_SERVICE}</code> 的结构，但先比较差异，不要整目录盲拷。</p>
+            <p><strong>公共 API：</strong>先在 <code>src/robot_tools/services/{SERVICE}/contract.py</code> 定义 service id、API version、actions、请求/响应；写清数组形状、类型、单位、可选字段与默认行为。再实现 client，并更新 <code>__init__.py</code> 导出。</p>
+            <p><strong>runtime：</strong>在 <code>runtimes/{SERVICE}/</code> 隔离所有重依赖；实现 server 的 fake/real 分支与 backend 上游适配，分别维护轻量根 lock 和 <code>real/</code> 重依赖 lock，并补安装/下载/doctor/compat、README 与 PREREQUISITES。脚本必须可执行且可重复运行。</p>
+            <p><strong>接线：</strong>更新 registry、services.example.yaml 与 endpoints.example.yaml，分配未占用端口；补 examples、docs、contract/client/fake 测试和真实 probe。</p>
+            <p><strong>验收：</strong>根 SDK 不新增模型依赖；fake 无 GPU 通过；real probe 返回符合 contract 的 <code>{EXPECTED_SHAPE_AND_DTYPE}</code>；列出修改文件、运行命令、结果、风险与未验证项。若有不兼容变化，说明<span class="term" data-definition="版本升级（version bump）是把 API 版本号向前推进，明确告诉调用方旧约定已经变化。破坏兼容性的修改不能偷偷留在原版本里。">版本升级</span>与迁移方案。</p>
+          </div>
+        </div>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">⚠️</div>
+          <div class="callout-content">
+            <strong class="callout-title">不要让 AI 用“复制成功”冒充“接入完成”</strong>
+            <p>要求它报告每条验收证据，并明确哪些 real 检查因为没有硬件而尚未执行。诚实的未验证项，比一条含糊的“测试通过”更有价值。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module5-screen-6">
+        <h2 class="screen-heading" id="module5-screen-6">架构情境演练：你来做接入负责人</h2>
+        <p>这里没有背文件名的题。每题都要求你守住边界、兼容性和可验证性。</p>
+
+        <div class="quiz-container" id="m5-quiz-capstone">
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。某款相机对象是下游产品细节；下游先转成公共 contract 接受的数组，foo 服务就不会被单一厂商绑住。"
+               data-explanation-wrong="还不够稳。把某款相机 SDK 放进公共 client 或 server，会让所有使用者承担不相关依赖，也把通用服务绑在一款设备上。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 1 · 相机转换</span>
+              <p>某机器人使用专有 DepthCam 对象，而 foo 的 contract 接受 NumPy 图像数组。这个转换应放在哪里？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>放进 contract，让 contract import DepthCam SDK</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>写死在 foo server，所有请求都检查 DepthCam 类型</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>放在使用 DepthCam 的下游适配层，再把通用数组交给 FooClient</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="正是如此。固定模型路径属于服务启动配置；每张图都可能变化的阈值属于 per-call contract。"
+               data-explanation-wrong="想想这个值多久变化一次。启动一次才选的资源留在 runtime 启动参数；每次请求都可能不同的选项才进入 contract。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 2 · 两种选项</span>
+              <p>foo 有固定的模型权重路径，也有每张图都可能不同的 score_threshold。怎样分配最清楚？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>两者都做成每次请求字段</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>权重路径是 runtime 启动选项；score_threshold 是可选请求字段</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>两者都硬编码进 backend.py</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-a"
+               data-explanation-right="对。先修 foo 自己的上游固定、安装脚本、runtime 依赖或导入路径，再用全新环境复现；公共 SDK 不应为重型上游兜底。"
+               data-explanation-wrong="ModuleNotFoundError 发生在 foo 的真实 runtime，根 SDK 和 endpoint 都不是安装上游代码的正确位置。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 3 · 上游导入失败</span>
+              <p>fake 测试通过，但 real server 启动时报 <span class="term" data-definition="ModuleNotFoundError 表示 Python 找不到要导入的模块，常见原因是依赖未安装、路径没配置或上游源码未正确接入。"><code>ModuleNotFoundError</code></span><code>: foo_model</code>。第一轮修复范围是什么？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>检查 upstream 固定、install/download、runtime 依赖与导入路径，并在干净环境重试</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>把 foo_model 加进根 SDK 依赖</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>修改 endpoints.example.yaml 的 host</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-c"
+               data-explanation-right="对。字段改名会破坏旧调用方；新版本、兼容声明、迁移说明和双版本测试让变化可见、可验证。"
+               data-explanation-wrong="不兼容变化不能躲在同一个 API_VERSION 下。只改 client 或只改 server 都会让另一端按旧契约说话。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 4 · 不兼容升级</span>
+              <p>团队决定把响应字段 masks 改名为 segments，旧 client 不能自动适配。应该怎样发布？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>保持 API_VERSION 不变，只改 server</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>只让新 client 猜测两种字段名，不写文档</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>提升 API_VERSION，同步兼容声明、迁移文档，并测试旧版与新版行为</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block scenario-block"
+               data-correct="option-b"
+               data-explanation-right="没错。端口是 registry 与连接样例共同公开的接线资料；选新端口后要同步两处，并用同时启动测试证明没有碰撞。"
+               data-explanation-wrong="随机端口或删除旧服务会把冲突藏起来。应该为 foo 分配稳定、未占用的端口，并同步所有公开接线资料。">
+            <div class="scenario-context">
+              <span class="scenario-label">情境 5 · 端口碰撞</span>
+              <p>foo 默认使用 5558，但 sam3 已占用它。怎样处理才算完成？</p>
+            </div>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>让 foo 每次随机挑一个端口，不更新配置</span></button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>选择未占用的稳定端口，同步 registry、endpoint 样例和文档，再测试并行启动</span></button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)"><span class="quiz-option-radio"></span><span>删除 sam3 的登记，让 5558 给 foo</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('m5-quiz-capstone')">检查决策</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('m5-quiz-capstone')">重新推演</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

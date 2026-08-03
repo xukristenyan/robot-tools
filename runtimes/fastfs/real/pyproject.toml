@@ -1,0 +1,37 @@
+[project]
+name = "robot-tools-fastfs-real-runtime"
+version = "0.1.0"
+description = "Locked real-model environment for the FastFoundationStereo service runtime."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # The serialized checkpoint contains an OmegaConf DictConfig and imports
+    # the modules below while torch.load reconstructs the model class.
+    "imageio",
+    "omegaconf",
+    "opencv-python-headless",
+    "robot-tools[server]",
+    "timm",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../../..", editable = true }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]

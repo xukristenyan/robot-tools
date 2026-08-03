@@ -1,0 +1,501 @@
+<section class="module" id="module-2" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">02</span>
+      <h1 class="module-title">文件地图：需求应该送到哪一层？</h1>
+      <p class="module-subtitle">把仓库当成有标签的工具库：先找货架，再动文件。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in" aria-labelledby="module-2-screen-1">
+        <h2 class="screen-heading" id="module-2-screen-1">先看标签，不要一上来全库搜索</h2>
+        <p>同一句“帮我改一下”，可能指向完全不同的货架。判断标准不是文件名像不像，而是变化由谁负责。</p>
+
+        <div class="pattern-cards" aria-label="六类文件货架">
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-1)">
+            <div class="pattern-icon" style="background: var(--color-actor-1)">🧰</div>
+            <h3 class="pattern-title">根目录</h3>
+            <p class="pattern-desc">项目总说明、轻量公共依赖、连接配置样例与<span class="term" data-definition="锁文件（lockfile）记录依赖的精确版本，让不同电脑装出尽量相同的环境。与 AI 沟通时可以说：‘更新依赖并同步锁文件。’">锁文件</span>。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-2)">
+            <div class="pattern-icon" style="background: var(--color-actor-2)">🧭</div>
+            <h3 class="pattern-title">公共 SDK</h3>
+            <p class="pattern-desc"><span class="term" data-definition="SDK 是给其他程序调用的一套现成工具。这里的公共 SDK 负责找服务、读配置和发送请求，不负责加载大型模型。">SDK</span> 像前台工具箱；<span class="term" data-definition="包（package）是一组可以一起导入和复用的 Python 代码文件，像一个贴好标签的工具盒。">包</span>里放共享规则，保持轻量。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-3)">
+            <div class="pattern-icon" style="background: var(--color-actor-3)">📨</div>
+            <h3 class="pattern-title">服务 API</h3>
+            <p class="pattern-desc"><span class="term" data-definition="API 是两个程序约定好的沟通方式：可以传什么、会收到什么。让 AI 改 API 时，要同时说明兼容旧调用方。">API</span> 目录里的 client 负责发送，contract 负责规定请求与响应形状。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-4)">
+            <div class="pattern-icon" style="background: var(--color-actor-4)">🏭</div>
+            <h3 class="pattern-title">独立 runtime</h3>
+            <p class="pattern-desc"><span class="term" data-definition="runtime 是服务真正运行所需的独立环境，包含模型、硬件库和启动程序。它像机器房，不该塞进前台工具箱。">runtime</span> 放模型实现、服务进程、CUDA 与重型<span class="term" data-definition="依赖是代码运行时需要借用的其他软件包。轻量依赖给客户端用，重型依赖只留在对应 runtime。">依赖</span>。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-actor-5)">
+            <div class="pattern-icon" style="background: var(--color-actor-5)">🔌</div>
+            <h3 class="pattern-title">配置</h3>
+            <p class="pattern-desc"><span class="term" data-definition="配置（configuration）是无需改程序逻辑就能调整的值，例如主机地址、端口和开关。">配置</span>告诉 client 去哪里找服务；本机地址变化通常先看 endpoints 文件。</p>
+          </article>
+
+          <article class="pattern-card" style="border-top: 3px solid var(--color-accent)">
+            <div class="pattern-icon" style="background: var(--color-accent)">🧪</div>
+            <h3 class="pattern-title">示例・测试・文档</h3>
+            <p class="pattern-desc">examples 教怎么用，tests 防止旧功能被改坏，docs 解释怎么安装、排错与维护。</p>
+          </article>
+        </div>
+
+        <aside class="callout callout-accent">
+          <span class="callout-icon">💡</span>
+          <div>
+            <h3>Aha：用“责任”给 AI 指路</h3>
+            <p>可以直接说：“改 sam3 的 contract，不要把 Torch 放进根 pyproject。”这句话同时给出了目标货架和禁止越界的边界。</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-2">
+        <h2 class="screen-heading" id="module-2-screen-2">一张可扫描的仓库地图</h2>
+        <p>下面不要求背诵；遇到需求时，把它当索引用。相同文件名反复出现，说明它们是一套服务模板。</p>
+
+        <div class="file-tree" aria-label="robot-tools 文件树与职责">
+          <div class="ft-folder open">
+            <span class="ft-name">robot-tools/</span>
+            <span class="ft-desc">整个仓库</span>
+            <div class="ft-children">
+              <div class="ft-file">
+                <span class="ft-name">.gitmodules</span>
+                <span class="ft-desc">登记四个 upstream <span class="term" data-definition="Git submodule 是主仓库记录的另一个仓库版本。普通 clone 只拿到指针；需要某个真实模型时，install 才初始化对应 submodule。">submodule</span>；普通 clone 不会下载它们的内容</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">.gitignore · .github/workflows/ci.yml</span>
+                <span class="ft-desc">忽略本地产物 · GitHub 自动测试</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">.python-version</span>
+                <span class="ft-desc">根 SDK 默认使用的 Python 版本提示</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">README.md</span>
+                <span class="ft-desc">项目入口：快速开始与总览</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">pyproject.toml</span>
+                <span class="ft-desc">根 Python 项目与轻量 SDK 依赖；不要放 Torch / CUDA</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">uv.lock</span>
+                <span class="ft-desc">根项目依赖的精确版本</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">endpoints.example.yaml</span>
+                <span class="ft-desc">四个服务的 host / port 配置样例</span>
+              </div>
+              <div class="ft-file">
+                <span class="ft-name">services.example.yaml</span>
+                <span class="ft-desc">选择要管理的 service、运行模式与参数的样例</span>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">src/robot_tools/</span>
+                <span class="ft-desc">可被调用方安装的轻量公共代码</span>
+                <div class="ft-children">
+                  <div class="ft-file">
+                    <span class="ft-name">__init__.py</span>
+                    <span class="ft-desc">把目录标记并组织成 Python 包的入口</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">launcher.py</span>
+                    <span class="ft-desc">robot-tools 命令行入口：sync / install / download / launch / status / doctor</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">registry.py</span>
+                    <span class="ft-desc"><span class="term" data-definition="注册表（registry）是‘名字 → 详细资料’的集中清单。新增服务时，可让 AI 检查它的目录、启动命令和默认端口是否都登记了。">注册表</span>：service id → runtime 目录、启动命令、端口、GPU 要求</span>
+                  </div>
+                  <div class="ft-file">
+                    <span class="ft-name">runtime_state.py · py.typed</span>
+                    <span class="ft-desc">判断 fake / real 安装状态 · 告诉类型检查器本包提供类型信息</span>
+                  </div>
+
+                  <div class="ft-folder open">
+                    <span class="ft-name">core/</span>
+                    <span class="ft-desc">所有 service 共用的 HTTP、配置与协议基础设施</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">client.py</span><span class="ft-desc">统一发 HTTP 请求，并核对 health 身份与协议</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py</span><span class="ft-desc">创建 FastAPI app、health 与 action route</span></div>
+                      <div class="ft-file"><span class="ft-name">wire.py</span><span class="ft-desc">MessagePack 序列化 / 反序列化</span></div>
+                      <div class="ft-file"><span class="ft-name">endpoints.py</span><span class="ft-desc">读取 service id → host / port</span></div>
+                      <div class="ft-file"><span class="ft-name">exceptions.py · __init__.py</span><span class="ft-desc">共享异常 · 公共导出</span></div>
+                    </div>
+                  </div>
+
+                  <div class="ft-folder open">
+                    <span class="ft-name">services/</span>
+                    <span class="ft-desc">按 service 分组的轻量公开 API；这里不加载真实模型</span>
+                    <div class="ft-children">
+                      <div class="ft-folder"><span class="ft-name">fastfs/ · graspgen/ · graspgenx/ · sam3/</span><span class="ft-desc">每个目录都有 __init__.py、client.py、contract.py：导出、调用、请求/响应<span class="term" data-definition="契约（contract）是调用双方都遵守的数据约定。新增字段时应先改这里，再检查 client、server 和测试是否一致。">契约</span></span></div>
+                      <div class="ft-file"><span class="ft-name">__init__.py</span><span class="ft-desc">services 包入口</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">runtimes/</span>
+                <span class="ft-desc">四间互相隔离的重型机器房</span>
+                <div class="ft-children">
+                  <div class="ft-folder open">
+                    <span class="ft-name">graspgen/</span>
+                    <span class="ft-desc">graspgen 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">可运行 fake server 的轻量环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型的重型依赖声明与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py</span><span class="ft-desc">HTTP 服务入口 · 上游模型适配器</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh · doctor.py</span><span class="ft-desc">装环境 · 取模型资源 · 检查真实运行条件的<span class="term" data-definition="脚本（script）是按顺序自动执行任务的小程序，例如一次完成安装或检查。">脚本</span></span></div>
+                      <div class="ft-file"><span class="ft-name">compat/ · patches/</span><span class="ft-desc">上游兼容补丁 · 本仓库额外资源（该 service 按需存在）</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；只有安装这个 service 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">graspgenx/</span>
+                    <span class="ft-desc">graspgenx 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh · compat/</span><span class="ft-desc">按需安装、取权重、应用兼容补丁</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 graspgenx 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">fastfs/</span>
+                    <span class="ft-desc">fastfs 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh</span><span class="ft-desc">按需安装环境与下载模型资源</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 fastfs 时才初始化</span></div>
+                    </div>
+                  </div>
+                  <div class="ft-folder open">
+                    <span class="ft-name">sam3/</span>
+                    <span class="ft-desc">sam3 独立环境</span>
+                    <div class="ft-children">
+                      <div class="ft-file"><span class="ft-name">README.md · PREREQUISITES.md</span><span class="ft-desc">使用说明 · 前置条件</span></div>
+                      <div class="ft-file"><span class="ft-name">pyproject.toml · uv.lock</span><span class="ft-desc">轻量 fake 环境与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">real/pyproject.toml · real/uv.lock</span><span class="ft-desc">真实模型依赖与锁文件</span></div>
+                      <div class="ft-file"><span class="ft-name">server.py · backend.py · doctor.py</span><span class="ft-desc">服务入口 · 上游适配 · 真实环境诊断</span></div>
+                      <div class="ft-file"><span class="ft-name">install.sh · download.sh</span><span class="ft-desc">按需安装环境与下载模型资源</span></div>
+                      <div class="ft-folder"><span class="ft-name">upstream/</span><span class="ft-desc">Git submodule；安装 sam3 时才初始化</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ft-folder open">
+                <span class="ft-name">examples/</span>
+                <span class="ft-desc">README、公共配置、每个 service 的最小脚本与 stereo→grasp 流水线</span>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">tests/</span>
+                <span class="ft-desc">按 endpoints、协议、launcher、runtime、fake E2E 和 HTTP 往返分组的行为保护网，含测试用<span class="term" data-definition="fixture 是测试预先准备好的固定输入或假数据，像质检员手里的标准样品。让 AI 修测试时，应先说明 fixture 是否也要更新。">fixture</span></span>
+              </div>
+              <div class="ft-folder open">
+                <span class="ft-name">docs/</span>
+                <span class="ft-desc">ARCHITECTURE 记录设计约束，ADDING_A_SERVICE 是新增服务指南，learning/ 放交互课程</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pattern-cards" aria-label="重复文件名速查">
+          <article class="pattern-card">
+            <div class="pattern-icon">📦</div>
+            <h3 class="pattern-title">__init__.py</h3>
+            <p class="pattern-desc">控制一个包对外能 import 什么。<span class="term" data-definition="模块（module）通常就是一个可被导入的 Python 文件；包可以装下多个模块。">模块</span>加好了但导入不到，先看这里。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">☎️</div>
+            <h3 class="pattern-title">client.py</h3>
+            <p class="pattern-desc"><span class="term" data-definition="client（客户端）是主动发请求的一方；server（服务端）是在另一边接收并处理请求的一方。">客户端</span>的便捷调用、连接与错误处理。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">📐</div>
+            <h3 class="pattern-title">contract.py</h3>
+            <p class="pattern-desc">双方共同的数据边界。字段变化通常要联查 client、server、examples 和 tests。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🪛</div>
+            <h3 class="pattern-title">backend.py / real/</h3>
+            <p class="pattern-desc">backend 是连接上游模型的<span class="term" data-definition="adapter（适配器）把一种接口翻译成另一种接口，像旅行插头转换器。这里常用它把上游模型接入统一服务协议。">适配器</span>；real/ 只管理真实依赖声明和锁文件，不放业务代码。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🚪</div>
+            <h3 class="pattern-title">server.py</h3>
+            <p class="pattern-desc">服务进程入口：接请求、调用后端、回响应。</p>
+          </article>
+          <article class="pattern-card">
+            <div class="pattern-icon">🔗</div>
+            <h3 class="pattern-title">editable install</h3>
+            <p class="pattern-desc"><span class="term" data-definition="可编辑安装（editable install）会让环境直接指向当前源码目录；改代码后通常无需重新安装。向 AI 描述环境时可说：‘这个包是 editable install。’">可编辑安装</span>适合边改边试公共 SDK；它不等于安装所有 runtime。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-3">
+        <h2 class="screen-heading" id="module-2-screen-3">三份真实清单，画出三条边界</h2>
+        <p>注册表管“怎么启动”，endpoint 配置管“去哪里连”，根依赖管“客户端必须带什么”。三者相邻，但责任不混用。</p>
+
+        <h3>① 注册表：服务名 → 运行资料</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · src/robot_tools/registry.py</span>
+            <pre><code>@dataclass(frozen=True)
+class ServiceRuntimeSpec:
+    service_id: str
+    runtime_dir: Path
+    server_command: tuple[str, ...]  # command after ``uv run``
+    default_port: int
+    gpu_required: bool = True
+
+SERVICE_REGISTRY: dict[str, ServiceRuntimeSpec] = {
+    "graspgen": ServiceRuntimeSpec(
+        service_id="graspgen",
+        runtime_dir=REPO_ROOT / "runtimes" / "graspgen",
+        server_command=("python", "server.py"),
+        default_port=5557,</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">定义一张不可随意改写的“服务运行卡”。</p>
+              <p class="tl">卡上先写唯一服务名，再写它的 runtime 在哪里。</p>
+              <p class="tl">接着记录 uv run 之后真正执行的<span class="term" data-definition="命令（command）是你交给终端执行的一行指示，例如启动 server.py。">命令</span>。</p>
+              <p class="tl">每张卡有默认端口；没有特别声明时，默认需要 GPU。</p>
+              <p class="tl">下面是一张以 service id 为键的总注册表。</p>
+              <p class="tl">先登记 graspgen，并让卡片内部的名字保持一致。</p>
+              <p class="tl">它的机器房就是 runtimes/graspgen。</p>
+              <p class="tl">启动它会运行 server.py；默认端口是 5557。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>② endpoint 配置：客户端 → 网络地址</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · endpoints.example.yaml</span>
+            <pre><code>endpoints:
+  graspgen:  { host: 127.0.0.1, port: 5557 }
+  graspgenx: { host: 127.0.0.1, port: 5559 }
+  fastfs:    { host: 127.0.0.1, port: 5556 }
+  sam3:      { host: 127.0.0.1, port: 5558 }</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">这是一份 <span class="term" data-definition="YAML 是一种适合人阅读的配置文件格式，用缩进和‘键: 值’表达结构。">YAML</span> 地址簿，endpoints 是所有服务地址的总栏目。</p>
+              <p class="tl">graspgen 与 graspgenx 都在本机，但各用自己的<span class="term" data-definition="端口（port）像一栋楼里的房间号：host 找到电脑，port 找到电脑上的具体服务。">端口</span>。</p>
+              <p class="tl">fastfs 和 sam3 也独占端口，因此四个服务可以同时运行。</p>
+            </div>
+          </div>
+        </div>
+
+        <h3>③ 根依赖：轻量 SDK 的随身工具</h3>
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE · pyproject.toml</span>
+            <pre><code>dependencies = [
+    "numpy&gt;=1.26",
+    "msgpack&gt;=1.0",
+    "msgpack-numpy&gt;=0.4.8",
+    "pyyaml&gt;=6.0",
+    "pydantic&gt;=2",
+    "typing-extensions&gt;=4",
+    "httpx&gt;=0.27",
+]</code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">白话翻译</span>
+            <div class="translation-lines">
+              <p class="tl">这是根项目安装时会带上的公共依赖清单。</p>
+              <p class="tl">NumPy 处理数组；MessagePack 负责紧凑地打包数据。</p>
+              <p class="tl">PyYAML 读取配置；Pydantic 检查数据是否符合契约。</p>
+              <p class="tl">typing-extensions 补充类型能力；HTTPX 发网络请求。</p>
+              <p class="tl">清单到此结束：没有 Torch，也没有 CUDA。重型工具留在对应 runtime。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-4">
+        <h2 class="screen-heading" id="module-2-screen-4">动手分拣：把任务送到正确货架</h2>
+        <p>拖动任务卡到责任区；手机上可用手指拖动。想的不是“哪个名字眼熟”，而是“谁应该拥有这项变化”。</p>
+
+        <div class="dnd-container" id="dnd-module2">
+          <div class="dnd-chips" aria-label="待分类任务">
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-sdk">所有服务共用的连接重试</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-service-api">sam3 请求新增 crop_mode</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-runtime">升级 graspgen 的 CUDA 组合</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-config">把 fastfs 改连到另一台电脑</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-examples">补一个最短的调用演示</div>
+            <div class="dnd-chip" draggable="true" tabindex="0" role="button" data-answer="m2-quality">增加回归样例与排错说明</div>
+          </div>
+
+          <div class="dnd-zones">
+            <div class="dnd-zone" data-correct="m2-sdk">
+              <p class="dnd-zone-label">公共 SDK</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-service-api">
+              <p class="dnd-zone-label">服务 API（client / contract）</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-runtime">
+              <p class="dnd-zone-label">独立 runtime</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-config">
+              <p class="dnd-zone-label">endpoint 配置</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-examples">
+              <p class="dnd-zone-label">examples</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+            <div class="dnd-zone" data-correct="m2-quality">
+              <p class="dnd-zone-label">tests / docs</p>
+              <div class="dnd-zone-target">放到这里</div>
+            </div>
+          </div>
+
+          <div class="dnd-actions">
+            <button class="quiz-check-btn" type="button" onclick="checkDnD('dnd-module2')">检查分拣</button>
+            <button class="quiz-reset-btn" type="button" onclick="resetDnD('dnd-module2')">重新分拣</button>
+          </div>
+        </div>
+
+        <aside class="callout callout-info">
+          <span class="callout-icon">🗣️</span>
+          <div>
+            <h3>把分拣结果写成可执行指令</h3>
+            <p>“在 sam3 的 contract 加 crop_mode；同步 client、server、examples 和 tests；不要改其他服务的 runtime。”这比“加个字段”安全得多。</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="screen animate-in" aria-labelledby="module-2-screen-5">
+        <h2 class="screen-heading" id="module-2-screen-5">情境演练：先定改动边界</h2>
+        <p>每题都像一条真实任务单。选择最能保持分层清楚、又不漏掉相关文件的做法。</p>
+
+        <div class="quiz-container" id="quiz-module2">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。contract 是共享数据边界；同步 client、server 和测试，才能让发送方与接收方继续说同一种语言。"
+               data-explanation-wrong="还差一步。只改接收逻辑会让调用双方对字段理解不一致；根依赖也不负责请求形状。">
+            <h3 class="quiz-question">1. sam3 要新增可选字段 crop_mode，而且旧调用仍要工作。你会怎样给 AI 划定范围？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>只在 runtimes/sam3/server.py 临时读取这个字段</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>先改 sam3/contract.py，并联查 client、server、examples 与 tests 的兼容性</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把 crop_mode 加进根 pyproject.toml</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="正是如此。硬件与模型依赖属于那一间 runtime；同步它自己的说明和锁定版本，同时守住根 SDK 的轻量边界。"
+               data-explanation-wrong="这会把一项服务专属的重型要求扩散给所有客户端。CUDA / Torch 组合应留在对应 runtime。">
+            <h3 class="quiz-question">2. graspgen 在新 GPU 驱动上需要另一组 Torch / CUDA 版本，但普通客户端不该下载它们。最稳妥的改动是什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把 Torch 与 CUDA 加进根 pyproject.toml</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>改 endpoints.example.yaml 的端口</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>只更新 runtimes/graspgen 的依赖与前置条件，并同步它自己的锁定版本</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="对。本地部署地址是配置，不是服务身份。只有要改变仓库提供的示例默认值时，才改 endpoints.example.yaml。"
+               data-explanation-wrong="再想想‘服务是什么’和‘服务现在住哪里’的区别。registry 记录身份与默认启动资料，实际连接地址应由本地 endpoint 配置提供。">
+            <h3 class="quiz-question">3. 只有你的电脑需要把 graspgen 从本机改连到实验室服务器。应该怎样做？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>修改由 endpoints.example.yaml 复制出的本地配置，不改公共样例</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>把远端地址写死进 graspgen/client.py</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>修改 registry.py 里的 runtime_dir</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="对。跨服务流程放 docs，读者有一个稳定入口；若还有某个 runtime 独有的注意事项，再从它的 README 或 PREREQUISITES 链过去。"
+               data-explanation-wrong="公共排错流程不该藏在某一个服务或测试 fixture 里。先放 docs，再为服务专属差异保留就近说明。">
+            <h3 class="quiz-question">4. 团队总结出一套所有服务都适用的“连接失败排查清单”，以后还会持续补充。放在哪里最合适？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" type="button" data-value="option-a" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>塞进 graspgen 的 backend.py 注释</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-b" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>在 docs/ 新建公共排错文档；服务特例再链接到各 runtime 说明</span>
+              </button>
+              <button class="quiz-option" type="button" data-value="option-c" onclick="selectOption(this)">
+                <span class="quiz-option-radio"></span>
+                <span>写进一个测试 fixture 的名字里</span>
+              </button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('quiz-module2')">检查选择</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('quiz-module2')">再想一次</button>
+        </div>
+
+        <aside class="callout callout-accent">
+          <span class="callout-icon">🗺️</span>
+          <div>
+            <h3>带走这张路线卡</h3>
+            <p>数据形状 → contract；调用体验 → client；模型与 GPU → runtime；地址 → endpoint 配置；用法 → examples；保护与解释 → tests / docs。</p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </div>
+</section>

@@ -1,76 +1,92 @@
-# robot-tools usage examples
+# Usage examples
 
-Minimal scripts showing how a downstream project consumes each client, plus
-one end-to-end pipeline that chains all three.
+These scripts show the downstream client API for every service and one
+multi-service pipeline:
 
-All examples assume the **real** servers are already running — i.e. the user
-has done `setup` + `download` for each server and removed `--mock` from
-`services.yaml`.
+| Script | Flow |
+|---|---|
+| `fastfs_stereo.py` | Stereo images → disparity → metric depth |
+| `sam3_segment.py` | Image + text or click → masks |
+| `graspgen_basic.py` | Object/scene point clouds → grasp poses |
+| `graspgenx_native.py` | Object point cloud + named gripper → grasp poses |
+| `pipeline_stereo_to_grasp.py` | FastFS → SAM3 → backprojection → GraspGen |
 
-```bash
-# In the robot-tools repo:
-robot-tools launch services.yaml
-```
+## Before running an example
 
-## Service config
-
-`examples/services.yaml` is a copy of the repo-root `services.example.yaml`,
-shipped here so the demo scripts have ports to read without you setting up
-anything. Every script calls `load_service("<name>")` from `_config.py`,
-which reads this file. Edit it to change ports/hosts and the scripts follow.
-
-This mirrors how a real downstream project works: it has its own
-`services.yaml`, copied from `services.example.yaml` and tuned per machine.
-The launcher (`robot-tools launch services.yaml`) reads the same format,
-so config and clients stay in sync.
-
-## Install in your downstream project
+From the repository root, start the services you want to exercise. The example
+launch profile uses fake mode by default:
 
 ```bash
-uv add --editable /path/to/robot-tools
-uv add pillow                 # used by the image-loading examples
+uv run robot-tools launch examples/services.yaml
 ```
 
-## Per-module parameters
+In another terminal, verify the addresses consumed by the scripts:
 
-Tuning knobs (camera intrinsics, score thresholds, num_grasps, …) live in
-`examples/configs/<name>.yaml` instead of CLI args. Edit those files to
-re-tune; the scripts call `load_params("<name>")` to read them.
-
-```
-examples/configs/
-├── fastfs.yaml      camera intrinsics + valid_iters / max_disp
-├── sam3.yaml        score_threshold + multimask_output
-└── graspgen.yaml    grasp_threshold, num_grasps, topk,
-                     collision_threshold, max_scene_points
+```bash
+uv run robot-tools status examples/endpoints.yaml
 ```
 
-CLI args are reserved for **per-run inputs** — image paths, point cloud
-paths, the text prompt, click coords. Everything else is config.
+Edit `examples/endpoints.yaml` when a service runs on another machine. Edit
+`examples/services.yaml` only when this checkout is responsible for launching
+the runtimes.
+
+> [!NOTE]
+> Fake mode is useful for checking each client's transport and contract. The
+> stereo-to-grasp pipeline needs meaningful model outputs, so use real
+> runtimes for an end-to-end result.
+
+The image examples use Pillow without adding it to the lightweight SDK. Their
+commands provide it as a temporary uv dependency.
 
 ## Run
 
 ```bash
-# 1. Stereo reconstruction → disparity (+ depth via configs/fastfs.yaml)
-uv run python examples/fastfs_stereo.py \
-    --left data/left.png --right data/right.png
+# Stereo reconstruction; saves depth.npy by default.
+uv run --with pillow python examples/fastfs_stereo.py \
+  --left data/left.png --right data/right.png
 
-# 2. Open-vocab + click segmentation
-uv run python examples/sam3_segment.py \
-    --image data/scene.png --text "the red mug" --click 640 480
+# Text segmentation and optional point-prompt segmentation.
+uv run --with pillow python examples/sam3_segment.py \
+  --image data/scene.png --text "the red mug" --click 640 480
 
-# 3. Grasp generation from an object point cloud (+ optional scene PC)
+# GraspGen; add --scene for collision filtering.
 uv run python examples/graspgen_basic.py \
-    --object data/object_pc.npy --scene data/scene_pc.npy
+  --object data/object_pc.npy --scene data/scene_pc.npy
 
-# 4. End-to-end: stereo → SAM3 mask → backproject → GraspGen
-uv run python examples/pipeline_stereo_to_grasp.py \
-    --left data/left.png --right data/right.png \
-    --target "the red mug"
+# Native GraspGenX named-gripper inference.
+uv run python examples/graspgenx_native.py \
+  --object data/object_pc.npy --gripper robotiq_2f_85
+
+# Full stereo → segmentation → collision-free grasp pipeline.
+uv run --with pillow python examples/pipeline_stereo_to_grasp.py \
+  --left data/left.png --right data/right.png \
+  --target "the red mug"
 ```
+
+Use each script's `--help` output for its input and output arguments.
+
+## Configuration
+
+The examples keep three different kinds of values separate:
+
+| Location | Owns |
+|---|---|
+| `examples/services.yaml` | Runtime selection, ports, GPUs, fake/real mode, server startup arguments |
+| `examples/endpoints.yaml` | Client-side host and port for each service |
+| `examples/configs/<service>.yaml` | Per-call model and camera parameters used by these scripts |
+
+Server startup choices such as a default gripper live in
+`services.yaml`. Values that can change for each request, such as thresholds
+and result counts, live in the per-service example config and are passed as
+client method arguments.
 
 ## Data conventions
 
-- Stereo images: rectified pair, same resolution, RGB or grayscale.
-- Point clouds: `.npy` of shape `(N, 3)` float32, in **camera frame meters**.
-- Camera intrinsics: `fx/fy` in pixels, `cx/cy` in pixels, `baseline` in meters.
+- Images are rectified RGB or grayscale arrays; a stereo pair must have the
+  same resolution.
+- Point clouds are `.npy` arrays with shape `(N, 3)`, `float32`, in camera
+  frame meters.
+- Camera intrinsics use pixel units for `fx`, `fy`, `cx`, and `cy`;
+  stereo baseline is in meters.
+- Grasp poses are `(K, 4, 4)` transforms in the coordinate frame documented
+  by the selected service.

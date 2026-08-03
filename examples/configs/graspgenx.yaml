@@ -1,0 +1,4 @@
+# Official name-based infer() selection controls.
+num_grasps: 200
+grasp_threshold: 0.7
+topk_num_grasps: 100

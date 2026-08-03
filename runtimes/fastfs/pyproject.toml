@@ -1,0 +1,28 @@
+[project]
+name = "robot-tools-fastfs-runtime"
+version = "0.1.0"
+description = "Fast-FoundationStereo service runtime (fake-capable; real model installed separately)."
+readme = "README.md"
+# FFS upstream targets Python 3.12.
+requires-python = ">=3.12,<3.13"
+
+# Light defaults: enough to run `python server.py --fake`. The exact real-model
+# graph lives in real/pyproject.toml and is synced into this project's .venv by
+# install.sh.
+dependencies = [
+    "robot-tools[server]",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.10.12,<0.11.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = false
+# Use uv-managed Python (which ships with dev headers / Python.h). The system
+# /usr/bin/python3.12 may not have python3.12-dev installed, breaking Triton's
+# JIT C-extension compile.
+python-preference = "only-managed"

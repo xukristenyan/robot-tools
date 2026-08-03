@@ -1,0 +1,265 @@
+<section class="module" id="module-1" style="min-height: 100vh; min-height: 100dvh; background: var(--color-bg-warm);">
+  <div class="module-content">
+    <header class="module-header animate-in">
+      <span class="module-number">01</span>
+      <h1 class="module-title">从 Clone 到第一次调用</h1>
+      <p class="module-subtitle">先用最轻的假服务走通全程，再只为需要的真实模型装行李。</p>
+    </header>
+
+    <div class="module-body">
+      <section class="screen animate-in">
+        <h2 class="screen-heading">新电脑上，先别搬进整座仓库</h2>
+        <p>假设你刚换了一台 <span class="term" data-definition="GPU 是擅长同时做大量计算的处理器，常用来运行 AI 模型；可以把它理解成专门处理重活的加速器。">GPU</span> 电脑，只想运行 <span class="term" data-definition="SAM3 是 robot-tools 能启动的一项模型服务；这一章把它当作你唯一要带走的装备。">SAM3</span>。普通 <span class="term" data-definition="clone 是把远程代码仓库完整复制到本机；像先拿到一只空行李箱，但里面还没有额外模型和环境。">clone</span> 只是拿到行李箱，<code>services.yaml</code> 才是装箱清单。</p>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item">
+            <code class="badge-code">FAKE · 先走通</code>
+            <span class="badge-desc"><span class="term" data-definition="fake mode 是用轻量假结果代替真实模型计算的运行方式；它用来验证命令、服务器和调用链是否连通。">假模式</span>不取模型、不做重计算，先证明整条链路能工作。</span>
+          </div>
+          <div class="badge-item">
+            <code class="badge-code">REAL · 再装载</code>
+            <span class="badge-desc">只为选中的服务拉取<span class="term" data-definition="upstream 指这个项目依赖的外部原始项目；只有真实服务需要时，才把对应上游代码取下来。">上游项目</span>、<span class="term" data-definition="模型权重是 AI 从训练中学到的大量数值参数；它们通常是需要另外下载的大文件。">模型权重</span>、<span class="term" data-definition="CUDA 是让 NVIDIA GPU 执行通用计算的软件平台；真实 AI 模型常依赖它，假模式通常不需要。">CUDA</span> 与<span class="term" data-definition="依赖是程序运行前必须准备的其他软件包；像设备需要合适的电池和转接头。">依赖</span>。</span>
+          </div>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">💡</div>
+          <div class="callout-content">
+            <strong>核心判断</strong>
+            <p>假模式成功，说明“配置 → 启动 → 调用”已经连通；之后真实模式失败，就集中查模型安装，而不是把整条链路一起怀疑。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">第一件装备：只选 SAM3</h2>
+        <p><span class="term" data-definition="YAML 是一种给人阅读的配置格式，用缩进表达层级；这里用它写要启动哪些服务。">YAML</span> <span class="term" data-definition="配置文件是把可调整选项放在代码之外的文件；换服务时改清单，不必改程序。">配置文件</span>就是旅行清单。这个<span class="term" data-definition="profile 是一组可重复使用的运行选择；这里指 services.yaml 中选中的服务及其参数。">运行配置</span>只写一个服务，并给它加上假模式参数。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">git clone &lt;robot-tools-url&gt;</span>
+<span class="code-line">cd robot-tools</span>
+<span class="code-line"></span>
+<span class="code-line">services:</span>
+<span class="code-line">  - name: sam3</span>
+<span class="code-line">    port: 5558</span>
+<span class="code-line">    extra_args: ["--fake"]</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">把 robot-tools 代码复制到本机。</p>
+              <p class="tl">进入刚复制的项目目录，后面的命令都从这里执行。</p>
+              <p class="tl">开始列出这次要运行的<span class="term" data-definition="服务是持续等待请求并返回结果的程序；这里每个模型都可以作为一个独立服务启动。">服务</span>。</p>
+              <p class="tl">清单里只放 <code>sam3</code>，不会顺便选择其他模型。</p>
+              <p class="tl"><span class="term" data-definition="端口是同一台电脑上区分不同网络服务的数字门牌号；5558 就是 SAM3 服务的门牌。">端口</span> <code>5558</code> 是它对外等待请求的门牌号。</p>
+              <p class="tl"><span class="term" data-definition="参数是跟在命令或配置后的额外选项；--fake 这个标志会改变服务的运行方式。">额外参数</span> <code>--fake</code> 要求先启动轻量假服务。</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">前 15 分钟：把安装和调用拆开</h2>
+        <p>下面的 <span class="term" data-definition="CLI 是命令行界面：你在终端输入文字命令来操作程序。和 AI 协作时，可以说“请运行 CLI 命令并贴出输出”。">CLI</span> 生命周期像一条检查路线。先走轻量路线，确认无误后再拐进真实模型路线。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">uv run robot-tools sync      # exact locked light/fake venvs; no upstreams or weights</span>
+<span class="code-line">uv run robot-tools install   # selected upstreams and locked real dependencies</span>
+<span class="code-line">uv run robot-tools download  # selected model artifacts</span>
+<span class="code-line">uv run robot-tools doctor    # read-only local checks</span>
+<span class="code-line">uv run robot-tools launch    # selected HTTP servers</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl"><code>sync</code> 创建严格锁定的轻量／假<span class="term" data-definition="venv 是 Python 的独立虚拟环境；它把这个服务需要的软件包和电脑上的其他项目隔开。">虚拟环境</span>，不取上游和权重。</p>
+              <p class="tl"><code>install</code> 只为已选服务准备真实依赖、补丁与<span class="term" data-definition="原生构建是把 C、C++ 等底层代码编译成本机能运行的程序；它通常比安装普通 Python 包更容易受系统环境影响。">原生构建</span>；需要时也会处理<span class="term" data-definition="submodule 是主代码仓库记录的另一个仓库引用；像行李箱里的可选收纳袋，需要时才单独取来。">子模块</span>。</p>
+              <p class="tl"><code>download</code> 只下载已选模型的<span class="term" data-definition="模型产物是运行模型所需的文件，例如权重或配置；它们不是普通源代码。">产物</span>。</p>
+              <p class="tl"><code>doctor</code> 只读取本机状态并报告问题，不修改环境。</p>
+              <p class="tl"><code>launch</code> 启动选中的 <span class="term" data-definition="HTTP 是浏览器和网络服务常用的请求规则；这里的模型服务器通过它接收调用。">HTTP</span> 服务器，开始等待调用。</p>
+            </div>
+          </div>
+        </div>
+
+        <p><code>sync</code>、<code>install</code>、<code>download</code>、<code>doctor</code> 和 <code>launch</code> 默认读取当前目录的 <code>services.yaml</code>；只有使用另一份 profile 时才需要在命令后写路径。</p>
+
+        <h3 class="screen-subheading">你的“前 15 分钟”清单</h3>
+        <div class="step-cards animate-in">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-body"><strong>Clone 项目</strong><p>只拿代码，不把所有模型都搬过来。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-body"><strong>写一项配置</strong><p><code>services.yaml</code> 只选 <code>sam3</code>，并保留 <code>--fake</code>。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-body"><strong>运行 sync</strong><p>先得到可重复的轻量环境，把环境问题单独解决。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <div class="step-body"><strong>运行 launch</strong><p>让假服务器先在选定端口等待请求。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">5</div>
+            <div class="step-body"><strong>检查 status</strong><p>确认下游看到的是正确服务地址。</p></div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">6</div>
+            <div class="step-body"><strong>发出第一次调用</strong><p>拿到假结果后，再决定是否进入真实安装路线。</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">亲手点一遍：一次请求怎样走完全程</h2>
+        <p>点击“下一步”追踪<span class="term" data-definition="数据流是信息在不同步骤或组件之间移动的路线；看懂它，就知道失败时该查哪一段。">数据流</span>。前六步是第一次假调用，后三步是你确认要用真实模型后才走的可选支线。</p>
+
+        <div class="flow-animation animate-in" data-steps='[
+          {"highlight":"flow-m1-actor-1","label":"1. Clone：本机先拿到 robot-tools 代码"},
+          {"highlight":"flow-m1-actor-2","label":"2. 选择配置：services.yaml 只保留 SAM3 与 fake 参数","packet":true,"from":"m1-actor-1","to":"m1-actor-2"},
+          {"highlight":"flow-m1-actor-3","label":"3. Sync：创建锁定的轻量假环境","packet":true,"from":"m1-actor-2","to":"m1-actor-3"},
+          {"highlight":"flow-m1-actor-4","label":"4. Launch fake：假服务器开始等待请求","packet":true,"from":"m1-actor-3","to":"m1-actor-4"},
+          {"highlight":"flow-m1-actor-5","label":"5. Status：下游确认服务地址可见","packet":true,"from":"m1-actor-4","to":"m1-actor-5"},
+          {"highlight":"flow-m1-actor-6","label":"6. Client call：客户端收到假结果，基础链路成立","packet":true,"from":"m1-actor-5","to":"m1-actor-6"},
+          {"highlight":"flow-m1-actor-7","label":"7. 可选 Install：只安装 SAM3 的真实代码与依赖","packet":true,"from":"m1-actor-6","to":"m1-actor-7"},
+          {"highlight":"flow-m1-actor-8","label":"8. 可选 Download：只下载 SAM3 模型产物","packet":true,"from":"m1-actor-7","to":"m1-actor-8"},
+          {"highlight":"flow-m1-actor-9","label":"9. 可选 Doctor：只读检查真实环境，再启动真实服务","packet":true,"from":"m1-actor-8","to":"m1-actor-9"}
+        ]'>
+          <div class="flow-actors">
+            <div class="flow-actor" id="flow-m1-actor-1"><div class="flow-actor-icon">📦</div><span>Clone</span></div>
+            <div class="flow-actor" id="flow-m1-actor-2"><div class="flow-actor-icon">🧳</div><span>选配置</span></div>
+            <div class="flow-actor" id="flow-m1-actor-3"><div class="flow-actor-icon">🔒</div><span>Sync</span></div>
+            <div class="flow-actor" id="flow-m1-actor-4"><div class="flow-actor-icon">🟢</div><span>Launch fake</span></div>
+            <div class="flow-actor" id="flow-m1-actor-5"><div class="flow-actor-icon">🔎</div><span>Status</span></div>
+            <div class="flow-actor" id="flow-m1-actor-6"><div class="flow-actor-icon">📨</div><span><span class="term" data-definition="客户端是主动向服务器发送请求的程序；这里它会读取地址、发出调用并接收结果。">客户端调用</span></span></div>
+            <div class="flow-actor" id="flow-m1-actor-7"><div class="flow-actor-icon">🧰</div><span>Install</span></div>
+            <div class="flow-actor" id="flow-m1-actor-8"><div class="flow-actor-icon">⬇️</div><span>Download</span></div>
+            <div class="flow-actor" id="flow-m1-actor-9"><div class="flow-actor-icon">🩺</div><span>Doctor</span></div>
+          </div>
+
+          <div class="flow-packet" id="flow-m1-packet"></div>
+          <div class="flow-step-label" id="flow-m1-label">点击“下一步”开始追踪</div>
+          <div class="flow-controls">
+            <button class="btn flow-next-btn" type="button">下一步</button>
+            <button class="btn flow-reset-btn" type="button">重新开始</button>
+            <span class="flow-progress"></span>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item"><code class="badge-code">轻量主线</code><span class="badge-desc">Clone → 配置 → sync → launch fake → status → 调用</span></div>
+          <div class="badge-item"><code class="badge-code">真实支线</code><span class="badge-desc">install → download → doctor；只有确认需要时才进入</span></div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">另一台电脑只做调用，不必重装模型</h2>
+        <p>下游项目安装 <span class="term" data-definition="SDK 是供其他程序直接调用的一组工具类和函数；它像遥控器，让你不用自己拼底层网络请求。">SDK</span>，再从 <span class="term" data-definition="endpoint 是服务的可访问地址，通常包含主机和端口；换服务器时，客户端主要改这个地址。">endpoint</span> 配置中找服务器。这样模型电脑负责运行，下游笔记本只负责发请求。</p>
+
+        <div class="translation-block animate-in">
+          <div class="translation-code">
+            <span class="translation-label">CODE</span>
+            <pre><code><span class="code-line">uv add --editable /path/to/robot-tools</span>
+<span class="code-line">cp /path/to/robot-tools/endpoints.example.yaml endpoints.yaml</span>
+<span class="code-line">uv run robot-tools status endpoints.yaml</span>
+<span class="code-line"></span>
+<span class="code-line">from robot_tools.core.endpoints import get_endpoint</span>
+<span class="code-line">from robot_tools.services.fastfs import FastFSClient</span>
+<span class="code-line"></span>
+<span class="code-line">client = FastFSClient.from_endpoint(get_endpoint("fastfs", "endpoints.yaml"))</span></code></pre>
+          </div>
+          <div class="translation-english">
+            <span class="translation-label">PLAIN ENGLISH</span>
+            <div class="translation-lines">
+              <p class="tl">把本地 robot-tools 以<span class="term" data-definition="editable 安装会让项目直接引用本地源码；你修改源码后通常不必重新安装。">可编辑方式</span>加入下游项目。</p>
+              <p class="tl">复制地址模板，生成这个项目自己的 <code>endpoints.yaml</code>。</p>
+              <p class="tl">先运行 <code>status</code>，确认配置中的服务地址能被看到。</p>
+              <p class="tl">导入读取地址的<span class="term" data-definition="函数是一段可以按名字调用的操作；输入服务名后，get_endpoint 会返回对应地址。">函数</span> <code>get_endpoint</code>。</p>
+              <p class="tl">导入 FastFS 的<span class="term" data-definition="类是创建同类对象的模板；FastFSClient 这个类规定客户端会怎样连接和调用服务。">客户端类</span>。</p>
+              <p class="tl">从配置找到 <code>fastfs</code> 地址，再创建可调用的 <code>client</code>。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="badge-list animate-in">
+          <div class="badge-item"><code class="badge-code">模型服务器</code><span class="badge-desc">运行真实模型与 <span class="term" data-definition="API 是程序之间约定好的调用入口；客户端按这个约定发送请求，服务器按约定返回结果。">API</span>。</span></div>
+          <div class="badge-item"><code class="badge-code">下游笔记本</code><span class="badge-desc">保留 SDK 与 <code>endpoints.yaml</code>，不需要复制服务器的权重和 CUDA 环境。</span></div>
+          <div class="badge-item"><code class="badge-code">服务器搬家</code><span class="badge-desc">更新 endpoint 的<span class="term" data-definition="主机是网络上运行服务的电脑或机器地址；服务搬到另一台机器时，主机地址会改变。">主机</span>与端口，再用 <code>status</code> 验证。</span></div>
+        </div>
+      </section>
+
+      <section class="screen animate-in">
+        <h2 class="screen-heading">情境演练：你会怎么做？</h2>
+        <p>不考缩写，只考下一步判断。每题先选最稳妥的行动，再查看反馈。</p>
+
+        <div class="quiz-container" id="quiz-module1">
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="正是这样：先只选 SAM3 并用 fake 走通，能避免无关模型的上游、权重和 CUDA 依赖。"
+               data-explanation-wrong="再想想装箱清单的作用：目标是只证明 SAM3 的链路，不必先为其他模型付出安装成本。">
+            <h3 class="quiz-question">1. 新 GPU 电脑只需要 SAM3，最稳妥的第一轮是什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先安装并下载所有模型，保证以后都能用</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span><code>services.yaml</code> 只选 SAM3 和 <code>--fake</code>，先 sync、launch 并调用</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>跳过配置文件，直接猜一个端口调用</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-c"
+               data-explanation-right="对：fake 已证明基础链路成立。现在把注意力缩到真实依赖、模型产物和本机检查，排错范围会小很多。"
+               data-explanation-wrong="fake 成功是一条重要线索：配置、启动和客户端路径大体没问题，不必全部推倒重来。">
+            <h3 class="quiz-question">2. 假服务调用成功，但切到真实 SAM3 后失败，应该先怎么缩小问题？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新 clone，并假设所有步骤都坏了</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>先修改下游业务代码，绕过服务</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>检查选中服务的 install、download，再用 doctor 查看真实环境</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-a"
+               data-explanation-right="完全正确：下游只装可编辑 SDK、复制 endpoint 配置并跑 status，就能先验证它看见哪台服务器。"
+               data-explanation-wrong="下游笔记本是遥控器，不是模型机。它需要 SDK 和地址配置，不需要重复下载模型权重。">
+            <h3 class="quiz-question">3. 同事的下游笔记本只负责调用模型服务器，应该准备什么？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>可编辑安装 robot-tools，复制 <code>endpoints.yaml</code>，再运行 status</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>把服务器上的全部权重和 CUDA 环境也复制过去</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>只复制一段 Python 调用代码，不提供服务地址</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <div class="quiz-question-block"
+               data-correct="option-b"
+               data-explanation-right="没错：服务器位置是 endpoint 配置的职责。更新地址并用 status 验证，比重装客户端或模型更直接。"
+               data-explanation-wrong="服务器只是换了网络位置；下游的调用方式没有变。先找负责记录位置的 endpoint 配置。">
+            <h3 class="quiz-question">4. 模型服务器搬到另一台主机，下游调用失败，第一处该改哪里？</h3>
+            <div class="quiz-options">
+              <button class="quiz-option" data-value="option-a" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新安装下游 SDK 的全部依赖</span></button>
+              <button class="quiz-option" data-value="option-b" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>更新 <code>endpoints.yaml</code> 中的主机和端口，再运行 status</span></button>
+              <button class="quiz-option" data-value="option-c" type="button" onclick="selectOption(this)"><div class="quiz-option-radio"></div><span>重新下载 SAM3 权重到下游笔记本</span></button>
+            </div>
+            <div class="quiz-feedback"></div>
+          </div>
+
+          <button class="quiz-check-btn" type="button" onclick="checkQuiz('quiz-module1')">检查思路</button>
+          <button class="quiz-reset-btn" type="button" onclick="resetQuiz('quiz-module1')">重新作答</button>
+        </div>
+
+        <div class="callout callout-accent animate-in">
+          <div class="callout-icon">🧭</div>
+          <div class="callout-content"><strong>带走这一条排错路线</strong><p>先证明轻量链路，再装真实模型；地址变化查 endpoint，真实计算失败查 install、download 与 doctor。</p></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>

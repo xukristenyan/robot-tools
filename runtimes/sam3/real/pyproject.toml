@@ -1,0 +1,45 @@
+[project]
+name = "robot-tools-sam3-real-runtime"
+version = "0.1.0"
+description = "Locked real-model environment for the SAM3 service runtime."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # The pinned upstream imports these at module load time but declares them
+    # only in optional extras (or not at all), even for the image builder.
+    "einops",
+    "psutil",
+    "pycocotools",
+    "robot-tools[server]",
+    "sam3",
+    # The pinned SAM3 commit imports pkg_resources at runtime. Setuptools
+    # warns to pin below v81, so keep that compatibility dependency until
+    # upstream migrates to importlib.resources.
+    "setuptools>=61,<81",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../../..", editable = true }
+sam3 = { path = "../upstream", editable = true }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.extra-build-dependencies]
+sam3 = ["setuptools<81"]

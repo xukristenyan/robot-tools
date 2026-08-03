@@ -1,9 +1,9 @@
-"""Registry of available model servers.
+"""Registry of deployable service runtimes.
 
-Each entry tells the launcher how to start a server: where its uv project lives,
-which command to run inside that project, and the default port.
+Each entry tells the launcher where a service's runtime project lives, which
+command starts its HTTP server, and which port it uses by default.
 
-Add a new server here after creating its `servers/<name>/` uv project.
+Add a service here after creating its ``runtimes/<service>/`` uv project.
 """
 
 from __future__ import annotations
@@ -15,46 +15,51 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
-class ServerSpec:
-    name: str
-    project_dir: Path  # absolute path to the uv project for this server
-    entry: list[str]  # command (after `uv run`) to start the server
+class ServiceRuntimeSpec:
+    service_id: str
+    runtime_dir: Path
+    server_command: tuple[str, ...]  # command after ``uv run``
     default_port: int
     gpu_required: bool = True
 
 
-SERVER_REGISTRY: dict[str, ServerSpec] = {
-    "graspgen": ServerSpec(
-        name="graspgen",
-        project_dir=REPO_ROOT / "servers" / "graspgen",
-        entry=["python", "server.py"],
+SERVICE_REGISTRY: dict[str, ServiceRuntimeSpec] = {
+    "graspgen": ServiceRuntimeSpec(
+        service_id="graspgen",
+        runtime_dir=REPO_ROOT / "runtimes" / "graspgen",
+        server_command=("python", "server.py"),
         default_port=5557,
         gpu_required=True,
     ),
-    "fastfs": ServerSpec(
-        name="fastfs",
-        project_dir=REPO_ROOT / "servers" / "fastfs",
-        entry=["python", "server.py"],
+    "graspgenx": ServiceRuntimeSpec(
+        service_id="graspgenx",
+        runtime_dir=REPO_ROOT / "runtimes" / "graspgenx",
+        server_command=("python", "server.py"),
+        default_port=5559,
+        gpu_required=True,
+    ),
+    "fastfs": ServiceRuntimeSpec(
+        service_id="fastfs",
+        runtime_dir=REPO_ROOT / "runtimes" / "fastfs",
+        server_command=("python", "server.py"),
         default_port=5556,
         gpu_required=True,
     ),
-    "sam3": ServerSpec(
-        name="sam3",
-        project_dir=REPO_ROOT / "servers" / "sam3",
-        entry=["python", "server.py"],
+    "sam3": ServiceRuntimeSpec(
+        service_id="sam3",
+        runtime_dir=REPO_ROOT / "runtimes" / "sam3",
+        server_command=("python", "server.py"),
         default_port=5558,
         gpu_required=True,
     ),
 }
 
 
-def get(name: str) -> ServerSpec:
-    if name not in SERVER_REGISTRY:
-        raise KeyError(
-            f"unknown server: {name!r}. registered: {list(SERVER_REGISTRY)}"
-        )
-    return SERVER_REGISTRY[name]
+def get_service_runtime(service_id: str) -> ServiceRuntimeSpec:
+    if service_id not in SERVICE_REGISTRY:
+        raise KeyError(f"unknown service: {service_id!r}. registered: {list(SERVICE_REGISTRY)}")
+    return SERVICE_REGISTRY[service_id]
 
 
-def names() -> list[str]:
-    return list(SERVER_REGISTRY)
+def service_ids() -> list[str]:
+    return list(SERVICE_REGISTRY)

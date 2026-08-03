@@ -1,0 +1,5 @@
+# download.sh clones checkpoints + gripper assets into upstream/ext/
+# (upstream is a submodule with ignore=dirty, so nothing to ignore here).
+# Local overrides, if you point the env vars somewhere inside this dir:
+checkpoints/
+gripper_descriptions/

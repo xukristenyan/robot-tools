@@ -1,0 +1,51 @@
+[project]
+name = "robot-tools-graspgenx-real-runtime"
+version = "0.1.0"
+description = "Locked inference environment for the GraspGenX service."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    # Imports required by the pinned model/server paths. GraspGenX itself is
+    # loaded directly from upstream/ so its broad training/demo metadata does
+    # not enter this environment.
+    "addict",
+    "diffusers==0.11.1",
+    "h5py",
+    "huggingface-hub==0.25.2",
+    "imageio",
+    "numpy==1.26.4",
+    "omegaconf",
+    "pillow",
+    "pyopengl==3.1.0",
+    "pyrender==0.1.45",
+    "robot-tools[server]",
+    "scikit-learn",
+    "scipy",
+    "timm==1.0.15",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+    "tqdm",
+    "trimesh==4.5.3",
+    "webdataset",
+    "yourdfpy==0.0.56",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../../..", editable = true }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]

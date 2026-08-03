@@ -1,26 +1,43 @@
 [project]
 name = "robot-tools"
 version = "0.1.0"
-description = "Shared client SDK + server launcher for vision/manipulation models (FoundationStereo, SAM, GraspGen, ...)."
+description = "Typed clients and runtime launcher for vision/manipulation model services."
 readme = "README.md"
 authors = [
     { name = "xukristenyan", email = "xkyan3@gmail.com" }
 ]
 requires-python = ">=3.10"
 
-# Light client-side deps. Heavy model deps live in each `servers/<name>/` subproject.
+# Light client-side deps. Heavy model deps live in each `runtimes/<service>/` project.
 dependencies = [
     "numpy>=1.26",
-    "pyzmq>=25",
     "msgpack>=1.0",
     "msgpack-numpy>=0.4.8",
     "pyyaml>=6.0",
     "pydantic>=2",
     "typing-extensions>=4",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 
 [project.scripts]
 robot-tools = "robot_tools.launcher:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff==0.16.1"]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+exclude = ["runtimes/*/upstream"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["uv_build>=0.10.12,<0.11.0"]
