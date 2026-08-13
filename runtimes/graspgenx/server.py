@@ -13,15 +13,14 @@ from robot_tools.services.graspgenx.contract import (
     ACTIONS,
     API_VERSION,
     SERVICE_ID,
-    InferObjectRequest,
-    InferObjectResponse,
-    InferRequest,
-    InferResponse,
-    InferSceneDepthRequest,
-    InferScenePointCloudRequest,
-    InferSceneResponse,
-    MetadataRequest,
-    MetadataResponse,
+    GenerateGraspsForAllRequest,
+    GenerateGraspsForAllResponse,
+    GenerateGraspsRequest,
+    GenerateGraspsResponse,
+    GenerateSafeGraspsForAllRequest,
+    GenerateSafeGraspsRequest,
+    GetMetadataRequest,
+    GetMetadataResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,8 +62,8 @@ class GraspGenXServer(BaseServer):
             )
         self.mark_ready()
 
-    @handler(MetadataRequest)
-    def metadata(self, req: MetadataRequest) -> MetadataResponse:
+    @handler(GetMetadataRequest)
+    def get_metadata(self, req: GetMetadataRequest) -> GetMetadataResponse:
         if self._fake:
             loaded = [self._default_gripper] if self._default_gripper else []
             data = {
@@ -84,15 +83,13 @@ class GraspGenXServer(BaseServer):
                 },
             }
         else:
-            data = self.backend.metadata()
-        return MetadataResponse(actions=sorted(ACTIONS), **data)
+            data = self.backend.get_metadata()
+        return GetMetadataResponse(actions=sorted(ACTIONS), **data)
 
-    @handler(InferRequest)
-    def infer(self, req: InferRequest) -> InferResponse:
+    @handler(GenerateGraspsRequest)
+    def generate_grasps(self, req: GenerateGraspsRequest) -> GenerateGraspsResponse:
         if self._fake:
-            gripper_name = req.gripper_name or self._default_gripper
-            if not gripper_name:
-                raise ValueError("request omitted gripper_name and the server has no default gripper")
+            gripper_name = _resolve_gripper_name(req.gripper_name, self._default_gripper)
             grasps, confidences, _tags = _fake_candidates(
                 req.num_grasps,
                 planner="diffusion",
@@ -103,92 +100,115 @@ class GraspGenXServer(BaseServer):
             if req.topk_num_grasps > 0:
                 order = np.argsort(-confidences, kind="stable")[: req.topk_num_grasps]
                 grasps, confidences = grasps[order], confidences[order]
-            return InferResponse(
+            return GenerateGraspsResponse(
                 grasps=grasps,
                 confidences=confidences,
                 gripper_name=gripper_name,
                 timing={"infer_ms": 0.0},
             )
 
-        result = self.backend.infer(
+        result = self.backend.generate_grasps(
             req.point_cloud,
             gripper_name=req.gripper_name,
             num_grasps=req.num_grasps,
             grasp_threshold=req.grasp_threshold,
             topk_num_grasps=req.topk_num_grasps,
         )
-        return InferResponse(**result)
+        return GenerateGraspsResponse(**result)
 
-    @handler(InferObjectRequest)
-    def infer_object(self, req: InferObjectRequest) -> InferObjectResponse:
+    @handler(GenerateSafeGraspsRequest)
+    def generate_safe_grasps(self, req: GenerateSafeGraspsRequest) -> GenerateGraspsResponse:
         if self._fake:
-            grasps, confidences, tags = _fake_candidates(
+            gripper_name = _resolve_gripper_name(req.gripper_name, self._default_gripper)
+            valid_target = (req.depth > 0) & np.isfinite(req.depth) & req.target_mask
+            point_count = int(np.count_nonzero(valid_target))
+            if point_count < req.min_object_points:
+                raise ValueError(
+                    f"target_mask contains {point_count} valid points; at least {req.min_object_points} are required"
+                )
+            grasps, confidences, _tags = _fake_candidates(
                 req.num_grasps,
                 planner=req.planner,
             )
-            return InferObjectResponse(
+            return GenerateGraspsResponse(
                 grasps=grasps,
                 confidences=confidences,
-                branch_tags=tags,
+                gripper_name=gripper_name,
                 timing={"infer_ms": 0.0},
             )
 
-        result = self.backend.infer_object(
-            req.point_cloud,
-            sweep_volume_params=req.sweep_volume_params,
+        result = self.backend.generate_safe_grasps(
+            req.depth,
+            req.intrinsics,
+            req.target_mask,
+            gripper_name=req.gripper_name,
+            min_object_points=req.min_object_points,
+            collision_threshold=req.collision_threshold,
             planner_kwargs=req.planner_kwargs(),
         )
-        return InferObjectResponse(**result)
+        return GenerateGraspsResponse(**result)
 
-    @handler(InferSceneDepthRequest)
-    def infer_scene_depth(
+    @handler(GenerateGraspsForAllRequest)
+    def generate_grasps_for_all(
         self,
-        req: InferSceneDepthRequest,
-    ) -> InferSceneResponse:
+        req: GenerateGraspsForAllRequest,
+    ) -> GenerateGraspsForAllResponse:
         if self._fake:
+            gripper_name = _resolve_gripper_name(req.gripper_name, self._default_gripper)
             valid = ((req.depth > 0) & np.isfinite(req.depth)).reshape(-1)
             return _fake_scene(
                 req.instance_mask.reshape(-1),
                 valid,
+                gripper_name=gripper_name,
                 min_object_points=req.min_object_points,
                 num_grasps=req.num_grasps,
                 planner=req.planner,
             )
 
-        result = self.backend.infer_scene_depth(
+        result = self.backend.generate_grasps_for_all(
             req.depth,
             req.intrinsics,
             req.instance_mask,
-            sweep_volume_params=req.sweep_volume_params,
+            gripper_name=req.gripper_name,
             min_object_points=req.min_object_points,
             planner_kwargs=req.planner_kwargs(),
         )
-        return InferSceneResponse(**result)
+        return GenerateGraspsForAllResponse(**result)
 
-    @handler(InferScenePointCloudRequest)
-    def infer_scene_pc(
+    @handler(GenerateSafeGraspsForAllRequest)
+    def generate_safe_grasps_for_all(
         self,
-        req: InferScenePointCloudRequest,
-    ) -> InferSceneResponse:
+        req: GenerateSafeGraspsForAllRequest,
+    ) -> GenerateGraspsForAllResponse:
         if self._fake:
-            points = req.point_cloud.reshape(-1, 3)
-            valid = np.isfinite(points).all(axis=1)
+            gripper_name = _resolve_gripper_name(req.gripper_name, self._default_gripper)
+            valid = ((req.depth > 0) & np.isfinite(req.depth)).reshape(-1)
             return _fake_scene(
                 req.instance_mask.reshape(-1),
                 valid,
+                gripper_name=gripper_name,
                 min_object_points=req.min_object_points,
                 num_grasps=req.num_grasps,
                 planner=req.planner,
             )
 
-        result = self.backend.infer_scene_pc(
-            req.point_cloud,
+        result = self.backend.generate_safe_grasps_for_all(
+            req.depth,
+            req.intrinsics,
             req.instance_mask,
-            sweep_volume_params=req.sweep_volume_params,
+            gripper_name=req.gripper_name,
             min_object_points=req.min_object_points,
+            collision_threshold=req.collision_threshold,
             planner_kwargs=req.planner_kwargs(),
         )
-        return InferSceneResponse(**result)
+        return GenerateGraspsForAllResponse(**result)
+
+
+def _resolve_gripper_name(requested: str | None, default: str | None) -> str:
+    gripper_name = requested or default
+    if not gripper_name:
+        raise ValueError("request omitted gripper_name and the server has no default gripper")
+    return gripper_name
 
 
 def _fake_candidates(
@@ -211,10 +231,11 @@ def _fake_scene(
     instance_mask: np.ndarray,
     valid: np.ndarray,
     *,
+    gripper_name: str,
     min_object_points: int,
     num_grasps: int,
     planner: str,
-) -> InferSceneResponse:
+) -> GenerateGraspsForAllResponse:
     started = time.monotonic()
     instance_ids: list[int] = []
     grasps_list: list[np.ndarray] = []
@@ -237,12 +258,13 @@ def _fake_scene(
         confidence_list.append(confidences)
         tag_list.append(tags)
 
-    return InferSceneResponse(
+    return GenerateGraspsForAllResponse(
         instance_ids=np.asarray(instance_ids, dtype=np.int32),
         grasps=grasps_list,
         confidences=confidence_list,
         branch_tags=tag_list,
         skipped_instance_ids=np.asarray(skipped_ids, dtype=np.int32),
+        gripper_name=gripper_name,
         timing={"infer_ms": (time.monotonic() - started) * 1000.0},
     )
 
@@ -273,7 +295,7 @@ def main() -> None:
         "--default_gripper",
         dest="default_gripper",
         default=None,
-        help="Optionally preload this named gripper and use it for infer() fallback",
+        help="Optionally preload this named gripper and use it when a request omits gripper_name",
     )
     parser.add_argument(
         "--tensorrt",

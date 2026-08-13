@@ -1,4 +1,4 @@
-"""Synchronous typed client for the native GraspGenX API."""
+"""Synchronous typed client for the robot-tools GraspGenX API."""
 
 from __future__ import annotations
 
@@ -13,49 +13,41 @@ from robot_tools.services.graspgenx.contract import (
     API_VERSION,
     SERVICE_ID,
     BranchTag,
-    InferObjectRequest,
-    InferObjectResponse,
-    InferRequest,
-    InferResponse,
-    InferSceneDepthRequest,
-    InferScenePointCloudRequest,
-    InferSceneResponse,
-    MetadataRequest,
-    MetadataResponse,
+    GenerateGraspsForAllRequest,
+    GenerateGraspsForAllResponse,
+    GenerateGraspsRequest,
+    GenerateGraspsResponse,
+    GenerateSafeGraspsForAllRequest,
+    GenerateSafeGraspsRequest,
+    GetMetadataRequest,
+    GetMetadataResponse,
     OBBDensity,
     OBBMode,
     OBBSkipRule,
     Planner,
-    SweepVolumeParams,
 )
 
 
 class GraspGenXClient(BaseClient):
-    """Drive GraspGenX without importing Torch or the upstream package.
-
-    The API mirrors the official GraspGenX serving modes while retaining the
-    robot-tools convention of returning complete Pydantic response objects.
-    Native sweep-volume modes apply score thresholding and final top-k locally,
-    exactly as the official lightweight client does.
-    """
+    """Drive the GraspGenX service without importing Torch or upstream code."""
 
     SUPPORTED_SERVICE_APIS: ClassVar[dict[str, frozenset[str]]] = {SERVICE_ID: frozenset({API_VERSION})}
     REQUIRED_ACTIONS = ACTIONS
 
     def __init__(self, *args, **kwargs):
-        self._metadata_cache: MetadataResponse | None = None
+        self._metadata_cache: GetMetadataResponse | None = None
         super().__init__(*args, **kwargs)
 
-    def metadata(self, *, refresh: bool = False) -> MetadataResponse:
+    def get_metadata(self, *, refresh: bool = False) -> GetMetadataResponse:
         if refresh or self._metadata_cache is None:
-            self._metadata_cache = self._request(MetadataRequest(), MetadataResponse)
+            self._metadata_cache = self._request(GetMetadataRequest(), GetMetadataResponse)
         return self._metadata_cache
 
     @property
-    def server_metadata(self) -> MetadataResponse:
-        return self.metadata()
+    def server_metadata(self) -> GetMetadataResponse:
+        return self.get_metadata()
 
-    def infer(
+    def generate_grasps(
         self,
         point_cloud: np.ndarray,
         *,
@@ -63,25 +55,29 @@ class GraspGenXClient(BaseClient):
         num_grasps: int = 200,
         grasp_threshold: float = -1.0,
         topk_num_grasps: int = 100,
-    ) -> InferResponse:
-        """Name-based inference using a gripper from official assets."""
+    ) -> GenerateGraspsResponse:
+        """Generate grasps for one segmented object point cloud."""
 
         grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
-        request = InferRequest(
+        request = GenerateGraspsRequest(
             point_cloud=point_cloud,
             gripper_name=gripper_name,
             num_grasps=num_grasps,
             grasp_threshold=grasp_threshold,
             topk_num_grasps=topk_num_grasps,
         )
-        return self._request(request, InferResponse)
+        return self._request(request, GenerateGraspsResponse)
 
-    def infer_object(
+    def generate_safe_grasps(
         self,
-        point_cloud: np.ndarray,
-        sweep_volume_params: SweepVolumeParams | dict | np.ndarray | list | tuple,
+        depth: np.ndarray,
+        intrinsics: np.ndarray,
+        target_mask: np.ndarray,
         *,
+        gripper_name: str | None = None,
         planner: Planner = "graspmoe",
+        min_object_points: int = 100,
+        collision_threshold: float = 0.02,
         num_grasps: int = 200,
         grasp_threshold: float = -1.0,
         topk_num_grasps: int = 100,
@@ -93,17 +89,17 @@ class GraspGenXClient(BaseClient):
         moe_skip_obb_rule: OBBSkipRule = "auto",
         moe_obb_density: OBBDensity = "sparse",
         moe_obb_position_spacing_cm: float = 1.0,
-    ) -> InferObjectResponse:
-        """Plan grasps for one segmented object point cloud.
-
-        The HTTP service returns every candidate. ``grasp_threshold`` and
-        ``topk_num_grasps`` are intentionally applied in this client process.
-        """
+    ) -> GenerateGraspsResponse:
+        """Generate grasps for one mask and remove collisions with the rest of the scene."""
 
         grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
-        request = InferObjectRequest(
-            point_cloud=point_cloud,
-            sweep_volume_params=sweep_volume_params,
+        request = GenerateSafeGraspsRequest(
+            depth=depth,
+            intrinsics=intrinsics,
+            target_mask=target_mask,
+            gripper_name=gripper_name,
+            min_object_points=min_object_points,
+            collision_threshold=collision_threshold,
             **_planner_fields(
                 planner=planner,
                 num_grasps=num_grasps,
@@ -117,29 +113,28 @@ class GraspGenXClient(BaseClient):
                 moe_obb_position_spacing_cm=moe_obb_position_spacing_cm,
             ),
         )
-        response = self._request(request, InferObjectResponse)
-        grasps, confidences, tags = _apply_threshold_topk(
+        response = self._request(request, GenerateGraspsResponse)
+        grasps, confidences = _apply_selection(
             response.grasps,
             response.confidences,
-            response.branch_tags,
             grasp_threshold=grasp_threshold,
             topk_num_grasps=topk_num_grasps,
         )
-        return InferObjectResponse(
+        return GenerateGraspsResponse(
             grasps=grasps,
             confidences=confidences,
-            branch_tags=tags,
+            gripper_name=response.gripper_name,
             timing=response.timing,
             timing_ms=response.timing_ms,
         )
 
-    def infer_scene_depth(
+    def generate_grasps_for_all(
         self,
         depth: np.ndarray,
         intrinsics: np.ndarray,
         instance_mask: np.ndarray,
-        sweep_volume_params: SweepVolumeParams | dict | np.ndarray | list | tuple,
         *,
+        gripper_name: str | None = None,
         planner: Planner = "graspmoe",
         min_object_points: int = 100,
         num_grasps: int = 200,
@@ -153,15 +148,15 @@ class GraspGenXClient(BaseClient):
         moe_skip_obb_rule: OBBSkipRule = "auto",
         moe_obb_density: OBBDensity = "sparse",
         moe_obb_position_spacing_cm: float = 1.0,
-    ) -> InferSceneResponse:
-        """Plan per-instance grasps from metric depth in the camera frame."""
+    ) -> GenerateGraspsForAllResponse:
+        """Generate per-instance grasps from metric depth and an integer mask."""
 
         grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
-        request = InferSceneDepthRequest(
+        request = GenerateGraspsForAllRequest(
             depth=depth,
             intrinsics=intrinsics,
             instance_mask=instance_mask,
-            sweep_volume_params=sweep_volume_params,
+            gripper_name=gripper_name,
             min_object_points=min_object_points,
             **_planner_fields(
                 planner=planner,
@@ -176,21 +171,23 @@ class GraspGenXClient(BaseClient):
                 moe_obb_position_spacing_cm=moe_obb_position_spacing_cm,
             ),
         )
-        response = self._request(request, InferSceneResponse)
+        response = self._request(request, GenerateGraspsForAllResponse)
         return _filter_scene_response(
             response,
             grasp_threshold=grasp_threshold,
             topk_num_grasps=topk_num_grasps,
         )
 
-    def infer_scene_pc(
+    def generate_safe_grasps_for_all(
         self,
-        point_cloud: np.ndarray,
+        depth: np.ndarray,
+        intrinsics: np.ndarray,
         instance_mask: np.ndarray,
-        sweep_volume_params: SweepVolumeParams | dict | np.ndarray | list | tuple,
         *,
+        gripper_name: str | None = None,
         planner: Planner = "graspmoe",
         min_object_points: int = 100,
+        collision_threshold: float = 0.02,
         num_grasps: int = 200,
         grasp_threshold: float = -1.0,
         topk_num_grasps: int = 100,
@@ -202,15 +199,17 @@ class GraspGenXClient(BaseClient):
         moe_skip_obb_rule: OBBSkipRule = "auto",
         moe_obb_density: OBBDensity = "sparse",
         moe_obb_position_spacing_cm: float = 1.0,
-    ) -> InferSceneResponse:
-        """Plan per-instance grasps in the input point-cloud frame."""
+    ) -> GenerateGraspsForAllResponse:
+        """Generate per-instance grasps and remove collisions with each object's surroundings."""
 
         grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
-        request = InferScenePointCloudRequest(
-            point_cloud=point_cloud,
+        request = GenerateSafeGraspsForAllRequest(
+            depth=depth,
+            intrinsics=intrinsics,
             instance_mask=instance_mask,
-            sweep_volume_params=sweep_volume_params,
+            gripper_name=gripper_name,
             min_object_points=min_object_points,
+            collision_threshold=collision_threshold,
             **_planner_fields(
                 planner=planner,
                 num_grasps=num_grasps,
@@ -224,7 +223,7 @@ class GraspGenXClient(BaseClient):
                 moe_obb_position_spacing_cm=moe_obb_position_spacing_cm,
             ),
         )
-        response = self._request(request, InferSceneResponse)
+        response = self._request(request, GenerateGraspsForAllResponse)
         return _filter_scene_response(
             response,
             grasp_threshold=grasp_threshold,
@@ -232,7 +231,7 @@ class GraspGenXClient(BaseClient):
         )
 
     @staticmethod
-    def scene_results_by_id(response: InferSceneResponse) -> dict[int, tuple]:
+    def scene_results_by_id(response: GenerateGraspsForAllResponse) -> dict[int, tuple]:
         """Convert the wire-safe parallel lists to an instance-keyed mapping."""
 
         return {
@@ -297,7 +296,38 @@ def _validate_selection(grasp_threshold: float, topk_num_grasps: int) -> tuple[f
     return normalized_threshold, normalized_topk
 
 
-def _apply_threshold_topk(
+def _selection_indices(
+    confidences: np.ndarray,
+    *,
+    grasp_threshold: float,
+    topk_num_grasps: int,
+) -> np.ndarray:
+    grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
+    indices = np.arange(len(confidences))
+    if grasp_threshold > 0.0:
+        indices = indices[confidences >= grasp_threshold]
+    if topk_num_grasps > 0:
+        order = np.argsort(-confidences[indices], kind="stable")[:topk_num_grasps]
+        indices = indices[order]
+    return indices
+
+
+def _apply_selection(
+    grasps: np.ndarray,
+    confidences: np.ndarray,
+    *,
+    grasp_threshold: float,
+    topk_num_grasps: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    indices = _selection_indices(
+        confidences,
+        grasp_threshold=grasp_threshold,
+        topk_num_grasps=topk_num_grasps,
+    )
+    return grasps[indices], confidences[indices]
+
+
+def _apply_selection_with_tags(
     grasps: np.ndarray,
     confidences: np.ndarray,
     branch_tags: list[BranchTag],
@@ -305,27 +335,20 @@ def _apply_threshold_topk(
     grasp_threshold: float,
     topk_num_grasps: int,
 ) -> tuple[np.ndarray, np.ndarray, list[BranchTag]]:
-    grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
-    tags = list(branch_tags)
-    if grasp_threshold > 0.0:
-        keep = confidences >= grasp_threshold
-        grasps = grasps[keep]
-        confidences = confidences[keep]
-        tags = [tag for tag, selected in zip(tags, keep, strict=True) if selected]
-    if topk_num_grasps > 0:
-        order = np.argsort(-confidences, kind="stable")[:topk_num_grasps]
-        grasps = grasps[order]
-        confidences = confidences[order]
-        tags = [tags[int(index)] for index in order]
-    return grasps, confidences, tags
+    indices = _selection_indices(
+        confidences,
+        grasp_threshold=grasp_threshold,
+        topk_num_grasps=topk_num_grasps,
+    )
+    return grasps[indices], confidences[indices], [branch_tags[int(index)] for index in indices]
 
 
 def _filter_scene_response(
-    response: InferSceneResponse,
+    response: GenerateGraspsForAllResponse,
     *,
     grasp_threshold: float,
     topk_num_grasps: int,
-) -> InferSceneResponse:
+) -> GenerateGraspsForAllResponse:
     grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
     instance_ids: list[int] = []
     grasps_list: list[np.ndarray] = []
@@ -340,7 +363,7 @@ def _filter_scene_response(
         response.branch_tags,
         strict=True,
     ):
-        selected_grasps, selected_confidences, selected_tags = _apply_threshold_topk(
+        selected_grasps, selected_confidences, selected_tags = _apply_selection_with_tags(
             grasps,
             confidences,
             tags,
@@ -355,12 +378,13 @@ def _filter_scene_response(
         confidence_list.append(selected_confidences)
         tag_list.append(selected_tags)
 
-    return InferSceneResponse(
+    return GenerateGraspsForAllResponse(
         instance_ids=np.asarray(instance_ids, dtype=np.int32),
         grasps=grasps_list,
         confidences=confidence_list,
         branch_tags=tag_list,
         skipped_instance_ids=np.asarray(sorted(set(skipped)), dtype=np.int32),
+        gripper_name=response.gripper_name,
         timing=response.timing,
         timing_ms=response.timing_ms,
     )

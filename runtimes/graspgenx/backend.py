@@ -1,9 +1,4 @@
-"""Headless wrapper around the official GraspGenX inference paths.
-
-The gripper-independent model is loaded once. Named grippers and raw
-sweep-volume conditionings each get a lazily constructed sampler that shares
-those model weights, matching ``graspgenx.serving.zmq_server``.
-"""
+"""Headless named-gripper backend for the robot-tools GraspGenX service."""
 
 from __future__ import annotations
 
@@ -16,9 +11,10 @@ from pathlib import Path
 
 import numpy as np
 
-from robot_tools.services.graspgenx.contract import SweepVolumeParams
-
 logger = logging.getLogger(__name__)
+
+MAX_COLLISION_SCENE_POINTS = 8192
+NUM_COLLISION_SAMPLES = 2000
 
 # The official GraspGenX headless instructions require EGL; pyglet also needs
 # its headless mode before pyrender is imported transitively by dataset.py.
@@ -69,6 +65,7 @@ class GraspGenXBackend:
         self.default_gripper = default_gripper
         self.cfg = load_model_cfg(str(generator_dir), str(discriminator_dir))
         self._samplers: dict[str, object] = {}
+        self._collision_surface_points: dict[str, np.ndarray] = {}
         self._samplers_lock = threading.Lock()
         self._tensorrt_applied = False
         self._tensorrt_precision = tensorrt_precision
@@ -118,23 +115,27 @@ class GraspGenXBackend:
                 self._samplers[key] = sampler
             return sampler
 
-    def _get_sweep_sampler(self, params: SweepVolumeParams):
-        from graspgenx.grasp_server import GraspGenXSampler
+    def _resolve_sampler(self, gripper_name: str | None) -> tuple[str, object]:
+        selected_gripper = gripper_name or self.default_gripper
+        if not selected_gripper:
+            raise ValueError("request omitted gripper_name and the server has no default gripper")
+        return selected_gripper, self._get_named_sampler(selected_gripper)
 
-        key = f"sweep:{params.cache_key()}"
+    def _get_collision_surface_points(self, gripper_name: str, sampler: object) -> np.ndarray:
+        import trimesh
+
         with self._samplers_lock:
-            sampler = self._samplers.get(key)
-            if sampler is None:
-                logger.info("creating GraspGenX sampler from sweep volume %s", key)
-                sampler = GraspGenXSampler.from_sweep_volume(
-                    self.cfg,
-                    params.to_wire(),
-                    model=self._shared_model,
+            surface_points = self._collision_surface_points.get(gripper_name)
+            if surface_points is None:
+                sampled, _ = trimesh.sample.sample_surface(
+                    sampler.get_gripper_info().collision_mesh,
+                    NUM_COLLISION_SAMPLES,
                 )
-                self._samplers[key] = sampler
-            return sampler
+                surface_points = np.asarray(sampled, dtype=np.float32)
+                self._collision_surface_points[gripper_name] = surface_points
+            return surface_points
 
-    def metadata(self) -> dict:
+    def get_metadata(self) -> dict:
         diffusion = self.cfg.diffusion
         discriminator = self.cfg.discriminator
         return {
@@ -154,7 +155,7 @@ class GraspGenXBackend:
             },
         }
 
-    def infer(
+    def generate_grasps(
         self,
         point_cloud: np.ndarray,
         *,
@@ -165,10 +166,7 @@ class GraspGenXBackend:
     ) -> dict:
         from graspgenx.grasp_server import GraspGenXSampler
 
-        selected_gripper = gripper_name or self.default_gripper
-        if not selected_gripper:
-            raise ValueError("request omitted gripper_name and the server has no default gripper")
-        sampler = self._get_named_sampler(selected_gripper)
+        selected_gripper, sampler = self._resolve_sampler(gripper_name)
         started = time.monotonic()
         grasps, confidences = GraspGenXSampler.run_inference(
             point_cloud,
@@ -185,86 +183,125 @@ class GraspGenXBackend:
             "timing": {"infer_ms": infer_ms},
         }
 
-    def infer_object(
+    @staticmethod
+    def _scene_from_depth(depth: np.ndarray, intrinsics: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        from graspgenx.utils.scene_loaders import depth_to_camera_xyz
+
+        point_cloud = np.asarray(depth_to_camera_xyz(depth, intrinsics), dtype=np.float32).reshape(-1, 3)
+        valid = ((depth > 0) & np.isfinite(depth)).reshape(-1)
+        valid &= np.isfinite(point_cloud).all(axis=1)
+        return point_cloud, valid
+
+    def generate_safe_grasps(
         self,
-        point_cloud: np.ndarray,
+        depth: np.ndarray,
+        intrinsics: np.ndarray,
+        target_mask: np.ndarray,
         *,
-        sweep_volume_params: SweepVolumeParams,
+        gripper_name: str | None,
+        min_object_points: int,
+        collision_threshold: float,
         planner_kwargs: dict,
     ) -> dict:
         from graspgenx.samplers import run_planner_on_object
+        from graspgenx.utils.collision_filter import filter_colliding_grasps
 
-        sampler = self._get_sweep_sampler(sweep_volume_params)
+        selected_gripper, sampler = self._resolve_sampler(gripper_name)
+        point_cloud, valid = self._scene_from_depth(depth, intrinsics)
+        target = target_mask.reshape(-1)
+        object_points = point_cloud[valid & target]
+        if len(object_points) < min_object_points:
+            raise ValueError(
+                f"target_mask contains {len(object_points)} valid points; at least {min_object_points} are required"
+            )
+
         started = time.monotonic()
-        grasps, confidences, tags, _obb = run_planner_on_object(
-            point_cloud,
+        grasps, confidences, _tags, _obb = run_planner_on_object(
+            np.ascontiguousarray(object_points, dtype=np.float32),
             sampler,
             **planner_kwargs,
         )
+        grasps = _to_grasps(grasps)
+        confidences = _to_confidences(confidences)
+        scene_without_target = _downsample_scene(point_cloud[valid & ~target])
+        keep = filter_colliding_grasps(
+            scene_pc=scene_without_target,
+            grasp_poses=grasps,
+            collision_threshold=collision_threshold,
+            gripper_surface_points=self._get_collision_surface_points(selected_gripper, sampler),
+        )
         infer_ms = (time.monotonic() - started) * 1000.0
         return {
-            "grasps": _to_grasps(grasps),
-            "confidences": _to_confidences(confidences),
-            "branch_tags": [str(tag) for tag in tags],
+            "grasps": grasps[keep],
+            "confidences": confidences[keep],
+            "gripper_name": selected_gripper,
             "timing": {"infer_ms": infer_ms},
         }
 
-    def infer_scene_depth(
+    def generate_grasps_for_all(
         self,
         depth: np.ndarray,
         intrinsics: np.ndarray,
         instance_mask: np.ndarray,
         *,
-        sweep_volume_params: SweepVolumeParams,
+        gripper_name: str | None,
         min_object_points: int,
         planner_kwargs: dict,
     ) -> dict:
-        from graspgenx.utils.scene_loaders import depth_to_camera_xyz
-
-        xyz = depth_to_camera_xyz(depth, intrinsics).reshape(-1, 3)
-        valid = ((depth > 0) & np.isfinite(depth)).reshape(-1)
-        return self._infer_instances(
-            xyz,
-            instance_mask.reshape(-1),
-            valid,
-            sweep_volume_params=sweep_volume_params,
-            min_object_points=min_object_points,
-            planner_kwargs=planner_kwargs,
-        )
-
-    def infer_scene_pc(
-        self,
-        point_cloud: np.ndarray,
-        instance_mask: np.ndarray,
-        *,
-        sweep_volume_params: SweepVolumeParams,
-        min_object_points: int,
-        planner_kwargs: dict,
-    ) -> dict:
-        point_cloud = point_cloud.reshape(-1, 3)
-        valid = np.isfinite(point_cloud).all(axis=1)
-        return self._infer_instances(
+        selected_gripper, sampler = self._resolve_sampler(gripper_name)
+        point_cloud, valid = self._scene_from_depth(depth, intrinsics)
+        result = self._generate_for_instances(
             point_cloud,
             instance_mask.reshape(-1),
             valid,
-            sweep_volume_params=sweep_volume_params,
+            sampler=sampler,
             min_object_points=min_object_points,
             planner_kwargs=planner_kwargs,
         )
+        result["gripper_name"] = selected_gripper
+        return result
 
-    def _infer_instances(
+    def generate_safe_grasps_for_all(
+        self,
+        depth: np.ndarray,
+        intrinsics: np.ndarray,
+        instance_mask: np.ndarray,
+        *,
+        gripper_name: str | None,
+        min_object_points: int,
+        collision_threshold: float,
+        planner_kwargs: dict,
+    ) -> dict:
+        selected_gripper, sampler = self._resolve_sampler(gripper_name)
+        point_cloud, valid = self._scene_from_depth(depth, intrinsics)
+        result = self._generate_for_instances(
+            point_cloud,
+            instance_mask.reshape(-1),
+            valid,
+            sampler=sampler,
+            min_object_points=min_object_points,
+            planner_kwargs=planner_kwargs,
+            collision_threshold=collision_threshold,
+            gripper_surface_points=self._get_collision_surface_points(selected_gripper, sampler),
+        )
+        result["gripper_name"] = selected_gripper
+        return result
+
+    def _generate_for_instances(
         self,
         point_cloud: np.ndarray,
         instance_mask: np.ndarray,
         valid: np.ndarray,
         *,
-        sweep_volume_params: SweepVolumeParams,
+        sampler: object,
         min_object_points: int,
         planner_kwargs: dict,
+        collision_threshold: float | None = None,
+        gripper_surface_points: np.ndarray | None = None,
     ) -> dict:
         from graspgenx.samplers import run_planner_on_batch
+        from graspgenx.utils.collision_filter import filter_colliding_grasps
 
-        sampler = self._get_sweep_sampler(sweep_volume_params)
         candidate_ids = np.unique(instance_mask[valid & (instance_mask > 0)])
         instance_ids: list[int] = []
         instance_point_clouds: list[np.ndarray] = []
@@ -284,8 +321,6 @@ class GraspGenXBackend:
             sampler,
             **planner_kwargs,
         )
-        infer_ms = (time.monotonic() - started) * 1000.0
-
         output_ids: list[int] = []
         output_grasps: list[np.ndarray] = []
         output_confidences: list[np.ndarray] = []
@@ -295,13 +330,29 @@ class GraspGenXBackend:
             batch_results,
             strict=True,
         ):
+            grasps = _to_grasps(grasps)
+            confidences = _to_confidences(confidences)
+            tags = [str(tag) for tag in tags]
+            if collision_threshold is not None:
+                scene_without_target = _downsample_scene(point_cloud[valid & (instance_mask != instance_id)])
+                keep = filter_colliding_grasps(
+                    scene_pc=scene_without_target,
+                    grasp_poses=grasps,
+                    collision_threshold=collision_threshold,
+                    gripper_surface_points=gripper_surface_points,
+                )
+                grasps = grasps[keep]
+                confidences = confidences[keep]
+                tags = [tag for tag, is_free in zip(tags, keep, strict=True) if is_free]
             if len(grasps) == 0:
                 skipped_ids.append(instance_id)
                 continue
             output_ids.append(instance_id)
-            output_grasps.append(_to_grasps(grasps))
-            output_confidences.append(_to_confidences(confidences))
-            output_tags.append([str(tag) for tag in tags])
+            output_grasps.append(grasps)
+            output_confidences.append(confidences)
+            output_tags.append(tags)
+
+        infer_ms = (time.monotonic() - started) * 1000.0
 
         return {
             "instance_ids": np.asarray(output_ids, dtype=np.int32),
@@ -314,6 +365,14 @@ class GraspGenXBackend:
             ),
             "timing": {"infer_ms": infer_ms},
         }
+
+
+def _downsample_scene(point_cloud: np.ndarray) -> np.ndarray:
+    point_cloud = np.ascontiguousarray(point_cloud, dtype=np.float32)
+    if len(point_cloud) <= MAX_COLLISION_SCENE_POINTS:
+        return point_cloud
+    indices = np.linspace(0, len(point_cloud) - 1, MAX_COLLISION_SCENE_POINTS, dtype=np.int64)
+    return np.ascontiguousarray(point_cloud[indices])
 
 
 def _to_numpy(value: object) -> np.ndarray:

@@ -1,9 +1,5 @@
-"""Typed contracts for the native GraspGenX serving API.
+"""Typed contracts for the robot-tools GraspGenX service."""
 
-The action names and inference semantics mirror NVlabs/GraspGenX's official
-``graspgenx.serving`` layer.  Transport, readiness, errors, and admission are
-provided by robot-tools rather than the upstream ZMQ wrapper.
-"""
 
 from __future__ import annotations
 
@@ -16,14 +12,14 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from robot_tools.core.wire import BaseRequest, BaseResponse
 
 SERVICE_ID = "graspgenx"
-API_VERSION = "2"
+API_VERSION = "3"
 ACTIONS = frozenset(
     {
-        "infer",
-        "infer_object",
-        "infer_scene_depth",
-        "infer_scene_pc",
-        "metadata",
+        "generate_grasps",
+        "generate_safe_grasps",
+        "generate_grasps_for_all",
+        "generate_safe_grasps_for_all",
+        "get_metadata",
     }
 )
 
@@ -161,8 +157,8 @@ class _GraspGenXRequest(BaseRequest):
     model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
 
 
-class MetadataRequest(_GraspGenXRequest):
-    action: Literal["metadata"] = "metadata"
+class GetMetadataRequest(_GraspGenXRequest):
+    action: Literal["get_metadata"] = "get_metadata"
 
 
 class ModelMetadata(BaseModel):
@@ -178,7 +174,7 @@ class PrecisionMetadata(BaseModel):
     tensorrt_precision: Literal["fp32", "fp16"] | None = None
 
 
-class MetadataResponse(BaseResponse):
+class GetMetadataResponse(BaseResponse):
     default_gripper: str | None
     loaded_grippers: list[str]
     model: ModelMetadata
@@ -187,10 +183,10 @@ class MetadataResponse(BaseResponse):
     precision: PrecisionMetadata
 
 
-class InferRequest(_GraspGenXRequest):
+class GenerateGraspsRequest(_GraspGenXRequest):
     """Official name-based inference path for a configured gripper asset."""
 
-    action: Literal["infer"] = "infer"
+    action: Literal["generate_grasps"] = "generate_grasps"
     point_cloud: np.ndarray
     gripper_name: str | None = None
     num_grasps: int = Field(default=200, ge=1)
@@ -229,7 +225,7 @@ class InferenceTiming(BaseModel):
     infer_ms: float = Field(ge=0)
 
 
-class InferResponse(BaseResponse):
+class GenerateGraspsResponse(BaseResponse):
     grasps: np.ndarray
     confidences: np.ndarray
     gripper_name: str
@@ -246,17 +242,17 @@ class InferResponse(BaseResponse):
         return _confidences(value)
 
     @model_validator(mode="after")
-    def _validate_lengths(self) -> InferResponse:
+    def _validate_lengths(self) -> GenerateGraspsResponse:
         if len(self.grasps) != len(self.confidences):
             raise ValueError("grasps and confidences lengths must match")
         return self
 
 
 class PlannerRequest(_GraspGenXRequest):
-    """Planner controls shared by the official sweep-volume actions."""
+    """Planner controls shared by scene grasp actions."""
 
     action: str
-    sweep_volume_params: SweepVolumeParams
+    gripper_name: str | None = None
     planner: Planner = "graspmoe"
     num_grasps: int = Field(default=200, ge=1)
     moe_num_yaws: int = Field(default=36, ge=1)
@@ -268,10 +264,12 @@ class PlannerRequest(_GraspGenXRequest):
     moe_obb_density: OBBDensity = "sparse"
     moe_obb_position_spacing_cm: float = Field(default=1.0, gt=0)
 
-    @field_validator("sweep_volume_params", mode="before")
+    @field_validator("gripper_name")
     @classmethod
-    def _validate_sweep_volume(cls, value: object) -> SweepVolumeParams:
-        return SweepVolumeParams.coerce(value)
+    def _validate_gripper_name(cls, value: str | None) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError("gripper_name must not be empty")
+        return value
 
     @field_validator("moe_z_offsets_cm")
     @classmethod
@@ -303,45 +301,9 @@ class PlannerRequest(_GraspGenXRequest):
         }
 
 
-class InferObjectRequest(PlannerRequest):
-    action: Literal["infer_object"] = "infer_object"
-    point_cloud: np.ndarray
-
-    @field_validator("point_cloud", mode="before")
-    @classmethod
-    def _validate_point_cloud(cls, value: object) -> np.ndarray:
-        return _object_point_cloud(value)
-
-
-class InferObjectResponse(BaseResponse):
-    grasps: np.ndarray
-    confidences: np.ndarray
-    branch_tags: list[BranchTag]
-    timing: InferenceTiming
-
-    @field_validator("grasps", mode="before")
-    @classmethod
-    def _validate_grasps(cls, value: object) -> np.ndarray:
-        return _grasps(value)
-
-    @field_validator("confidences", mode="before")
-    @classmethod
-    def _validate_confidences(cls, value: object) -> np.ndarray:
-        return _confidences(value)
-
-    @model_validator(mode="after")
-    def _validate_lengths(self) -> InferObjectResponse:
-        count = len(self.grasps)
-        if len(self.confidences) != count or len(self.branch_tags) != count:
-            raise ValueError("grasps, confidences, and branch_tags lengths must match")
-        return self
-
-
-class InferSceneDepthRequest(PlannerRequest):
-    action: Literal["infer_scene_depth"] = "infer_scene_depth"
+class _SceneDepthRequest(PlannerRequest):
     depth: np.ndarray
     intrinsics: np.ndarray
-    instance_mask: np.ndarray
     min_object_points: int = Field(default=100, ge=1)
 
     @field_validator("depth", mode="before")
@@ -362,6 +324,11 @@ class InferSceneDepthRequest(PlannerRequest):
             raise ValueError("intrinsics must be a finite (3, 3) matrix")
         return intrinsics
 
+
+class GenerateGraspsForAllRequest(_SceneDepthRequest):
+    action: Literal["generate_grasps_for_all"] = "generate_grasps_for_all"
+    instance_mask: np.ndarray
+
     @field_validator("instance_mask", mode="before")
     @classmethod
     def _validate_mask(cls, value: object) -> np.ndarray:
@@ -371,51 +338,44 @@ class InferSceneDepthRequest(PlannerRequest):
         return mask.astype(np.int32, copy=False)
 
     @model_validator(mode="after")
-    def _validate_shapes(self) -> InferSceneDepthRequest:
+    def _validate_shapes(self) -> GenerateGraspsForAllRequest:
         if self.instance_mask.shape != self.depth.shape:
             raise ValueError("instance_mask shape must match depth")
         return self
 
 
-class InferScenePointCloudRequest(PlannerRequest):
-    action: Literal["infer_scene_pc"] = "infer_scene_pc"
-    point_cloud: np.ndarray
-    instance_mask: np.ndarray
-    min_object_points: int = Field(default=100, ge=1)
+class GenerateSafeGraspsRequest(_SceneDepthRequest):
+    action: Literal["generate_safe_grasps"] = "generate_safe_grasps"
+    target_mask: np.ndarray
+    collision_threshold: float = Field(default=0.02, gt=0)
 
-    @field_validator("point_cloud", mode="before")
-    @classmethod
-    def _validate_point_cloud(cls, value: object) -> np.ndarray:
-        point_cloud = np.asarray(value, dtype=np.float32)
-        if not (
-            (point_cloud.ndim == 2 and point_cloud.shape[1] == 3)
-            or (point_cloud.ndim == 3 and point_cloud.shape[-1] == 3)
-        ):
-            raise ValueError("point_cloud must have shape (N, 3) or (H, W, 3)")
-        return np.ascontiguousarray(point_cloud)
-
-    @field_validator("instance_mask", mode="before")
+    @field_validator("target_mask", mode="before")
     @classmethod
     def _validate_mask(cls, value: object) -> np.ndarray:
         mask = np.asarray(value)
-        if not np.issubdtype(mask.dtype, np.integer):
-            raise ValueError("instance_mask must use an integer dtype")
-        return mask.astype(np.int32, copy=False)
+        if mask.dtype != np.bool_:
+            raise ValueError("target_mask must use a boolean dtype")
+        return np.ascontiguousarray(mask)
 
     @model_validator(mode="after")
-    def _validate_shapes(self) -> InferScenePointCloudRequest:
-        point_count = int(np.prod(self.point_cloud.shape[:-1]))
-        if self.instance_mask.size != point_count:
-            raise ValueError("instance_mask size must match the number of point-cloud points")
+    def _validate_shapes(self) -> GenerateSafeGraspsRequest:
+        if self.target_mask.shape != self.depth.shape:
+            raise ValueError("target_mask shape must match depth")
         return self
 
 
-class InferSceneResponse(BaseResponse):
+class GenerateSafeGraspsForAllRequest(GenerateGraspsForAllRequest):
+    action: Literal["generate_safe_grasps_for_all"] = "generate_safe_grasps_for_all"
+    collision_threshold: float = Field(default=0.02, gt=0)
+
+
+class GenerateGraspsForAllResponse(BaseResponse):
     instance_ids: np.ndarray
     grasps: list[np.ndarray]
     confidences: list[np.ndarray]
     branch_tags: list[list[BranchTag]]
     skipped_instance_ids: np.ndarray
+    gripper_name: str
     timing: InferenceTiming
 
     @field_validator("instance_ids", "skipped_instance_ids", mode="before")
@@ -437,7 +397,7 @@ class InferSceneResponse(BaseResponse):
         return [_confidences(item) for item in value]
 
     @model_validator(mode="after")
-    def _validate_parallel_lists(self) -> InferSceneResponse:
+    def _validate_parallel_lists(self) -> GenerateGraspsForAllResponse:
         count = len(self.instance_ids)
         if not (len(self.grasps) == len(self.confidences) == len(self.branch_tags) == count):
             raise ValueError("scene response parallel-list lengths must match")
@@ -457,16 +417,15 @@ __all__ = [
     "API_VERSION",
     "SERVICE_ID",
     "BranchTag",
-    "InferObjectRequest",
-    "InferObjectResponse",
-    "InferRequest",
-    "InferResponse",
-    "InferSceneDepthRequest",
-    "InferScenePointCloudRequest",
-    "InferSceneResponse",
+    "GenerateGraspsForAllRequest",
+    "GenerateGraspsForAllResponse",
+    "GenerateGraspsRequest",
+    "GenerateGraspsResponse",
+    "GenerateSafeGraspsForAllRequest",
+    "GenerateSafeGraspsRequest",
+    "GetMetadataRequest",
+    "GetMetadataResponse",
     "InferenceTiming",
-    "MetadataRequest",
-    "MetadataResponse",
     "ModelMetadata",
     "OBBDensity",
     "OBBMode",
