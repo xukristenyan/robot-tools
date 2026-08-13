@@ -194,12 +194,10 @@ class GraspGenXBackend:
 
     def generate_safe_grasps(
         self,
-        depth: np.ndarray,
-        intrinsics: np.ndarray,
-        target_mask: np.ndarray,
+        object_point_cloud: np.ndarray,
+        scene_point_cloud: np.ndarray,
         *,
         gripper_name: str | None,
-        min_object_points: int,
         collision_threshold: float,
         planner_kwargs: dict,
     ) -> dict:
@@ -207,13 +205,7 @@ class GraspGenXBackend:
         from graspgenx.utils.collision_filter import filter_colliding_grasps
 
         selected_gripper, sampler = self._resolve_sampler(gripper_name)
-        point_cloud, valid = self._scene_from_depth(depth, intrinsics)
-        target = target_mask.reshape(-1)
-        object_points = point_cloud[valid & target]
-        if len(object_points) < min_object_points:
-            raise ValueError(
-                f"target_mask contains {len(object_points)} valid points; at least {min_object_points} are required"
-            )
+        object_points = np.ascontiguousarray(object_point_cloud, dtype=np.float32)
 
         started = time.monotonic()
         grasps, confidences, _tags, _obb = run_planner_on_object(
@@ -223,7 +215,7 @@ class GraspGenXBackend:
         )
         grasps = _to_grasps(grasps)
         confidences = _to_confidences(confidences)
-        scene_without_target = _downsample_scene(point_cloud[valid & ~target])
+        scene_without_target = _downsample_scene(scene_point_cloud)
         keep = filter_colliding_grasps(
             scene_pc=scene_without_target,
             grasp_poses=grasps,

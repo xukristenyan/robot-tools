@@ -29,7 +29,7 @@ def main() -> None:
     object_pc = np.load(args.object).astype(np.float32)
     params = load_params("graspgenx")
     with GraspGenXClient.from_endpoint(load_endpoint("graspgenx")) as client:
-        response = client.infer(
+        response = client.generate_grasps(
             object_pc,
             gripper_name=args.gripper,
             num_grasps=params["num_grasps"],

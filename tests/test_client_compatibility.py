@@ -31,11 +31,11 @@ SERVICE_ACTIONS = {
         "generate_grasps",
     ],
     "graspgenx": [
-        "infer",
-        "infer_object",
-        "infer_scene_depth",
-        "infer_scene_pc",
-        "metadata",
+        "generate_grasps",
+        "generate_grasps_for_all",
+        "generate_safe_grasps",
+        "generate_safe_grasps_for_all",
+        "get_metadata",
     ],
 }
 

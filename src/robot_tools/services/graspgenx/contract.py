@@ -12,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from robot_tools.core.wire import BaseRequest, BaseResponse
 
 SERVICE_ID = "graspgenx"
-API_VERSION = "3"
+API_VERSION = "4"
 ACTIONS = frozenset(
     {
         "generate_grasps",
@@ -48,13 +48,19 @@ def _vector3(value: object, *, name: str, positive: bool = False) -> np.ndarray:
     return array
 
 
-def _object_point_cloud(value: object) -> np.ndarray:
+def _point_cloud(value: object, *, name: str, allow_empty: bool = False) -> np.ndarray:
     point_cloud = np.asarray(value, dtype=np.float32)
-    if point_cloud.ndim != 2 or point_cloud.shape[1] != 3 or len(point_cloud) == 0:
-        raise ValueError("point_cloud must be a non-empty (N, 3) array")
+    if point_cloud.ndim != 2 or point_cloud.shape[1] != 3:
+        raise ValueError(f"{name} must have shape (N, 3)")
+    if not allow_empty and len(point_cloud) == 0:
+        raise ValueError(f"{name} must not be empty")
     if not np.all(np.isfinite(point_cloud)):
-        raise ValueError("point_cloud must contain only finite values")
+        raise ValueError(f"{name} must contain only finite values")
     return np.ascontiguousarray(point_cloud)
+
+
+def _object_point_cloud(value: object) -> np.ndarray:
+    return _point_cloud(value, name="point_cloud")
 
 
 def _grasps(value: object) -> np.ndarray:
@@ -344,24 +350,21 @@ class GenerateGraspsForAllRequest(_SceneDepthRequest):
         return self
 
 
-class GenerateSafeGraspsRequest(_SceneDepthRequest):
+class GenerateSafeGraspsRequest(PlannerRequest):
     action: Literal["generate_safe_grasps"] = "generate_safe_grasps"
-    target_mask: np.ndarray
+    object_point_cloud: np.ndarray
+    scene_point_cloud: np.ndarray
     collision_threshold: float = Field(default=0.02, gt=0)
 
-    @field_validator("target_mask", mode="before")
+    @field_validator("object_point_cloud", mode="before")
     @classmethod
-    def _validate_mask(cls, value: object) -> np.ndarray:
-        mask = np.asarray(value)
-        if mask.dtype != np.bool_:
-            raise ValueError("target_mask must use a boolean dtype")
-        return np.ascontiguousarray(mask)
+    def _validate_object_point_cloud(cls, value: object) -> np.ndarray:
+        return _point_cloud(value, name="object_point_cloud")
 
-    @model_validator(mode="after")
-    def _validate_shapes(self) -> GenerateSafeGraspsRequest:
-        if self.target_mask.shape != self.depth.shape:
-            raise ValueError("target_mask shape must match depth")
-        return self
+    @field_validator("scene_point_cloud", mode="before")
+    @classmethod
+    def _validate_scene_point_cloud(cls, value: object) -> np.ndarray:
+        return _point_cloud(value, name="scene_point_cloud", allow_empty=True)
 
 
 class GenerateSafeGraspsForAllRequest(GenerateGraspsForAllRequest):

@@ -120,12 +120,6 @@ class GraspGenXServer(BaseServer):
     def generate_safe_grasps(self, req: GenerateSafeGraspsRequest) -> GenerateGraspsResponse:
         if self._fake:
             gripper_name = _resolve_gripper_name(req.gripper_name, self._default_gripper)
-            valid_target = (req.depth > 0) & np.isfinite(req.depth) & req.target_mask
-            point_count = int(np.count_nonzero(valid_target))
-            if point_count < req.min_object_points:
-                raise ValueError(
-                    f"target_mask contains {point_count} valid points; at least {req.min_object_points} are required"
-                )
             grasps, confidences, _tags = _fake_candidates(
                 req.num_grasps,
                 planner=req.planner,
@@ -138,11 +132,9 @@ class GraspGenXServer(BaseServer):
             )
 
         result = self.backend.generate_safe_grasps(
-            req.depth,
-            req.intrinsics,
-            req.target_mask,
+            req.object_point_cloud,
+            req.scene_point_cloud,
             gripper_name=req.gripper_name,
-            min_object_points=req.min_object_points,
             collision_threshold=req.collision_threshold,
             planner_kwargs=req.planner_kwargs(),
         )

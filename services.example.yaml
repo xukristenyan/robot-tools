@@ -26,14 +26,14 @@ services:
     # Real: ["--gripper", "franka_panda"]    (or robotiq_2f_85/140, single_suction_cup_30mm)
     extra_args: ["--fake"]
 
-  # GraspGenX has its own native cross-embodiment API: named grippers plus raw
-  # sweep-volume object/scene inference. Use GraspGenXClient, not GraspGenClient.
+  # GraspGenX has its own native cross-embodiment API for named grippers.
+  # Use GraspGenXClient, not GraspGenClient.
   - name: graspgenx
     port: 5559
     # host: 0.0.0.0                          # trusted/firewalled LAN only
     # gpu: 0                                 # CUDA_VISIBLE_DEVICES (omit for default GPU)
     # Real: ["--default-gripper", "robotiq_2f_85"]
-    # The default is only a preload/fallback; each named infer request may
+    # The default is only a preload/fallback; each grasp request may
     # select another gripper. Planner selection is per request.
     extra_args: ["--fake"]
 

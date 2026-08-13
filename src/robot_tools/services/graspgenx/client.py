@@ -70,13 +70,11 @@ class GraspGenXClient(BaseClient):
 
     def generate_safe_grasps(
         self,
-        depth: np.ndarray,
-        intrinsics: np.ndarray,
-        target_mask: np.ndarray,
+        object_point_cloud: np.ndarray,
+        scene_point_cloud: np.ndarray,
         *,
         gripper_name: str | None = None,
         planner: Planner = "graspmoe",
-        min_object_points: int = 100,
         collision_threshold: float = 0.02,
         num_grasps: int = 200,
         grasp_threshold: float = -1.0,
@@ -90,15 +88,13 @@ class GraspGenXClient(BaseClient):
         moe_obb_density: OBBDensity = "sparse",
         moe_obb_position_spacing_cm: float = 1.0,
     ) -> GenerateGraspsResponse:
-        """Generate grasps for one mask and remove collisions with the rest of the scene."""
+        """Generate object grasps and remove collisions with the supplied surrounding scene."""
 
         grasp_threshold, topk_num_grasps = _validate_selection(grasp_threshold, topk_num_grasps)
         request = GenerateSafeGraspsRequest(
-            depth=depth,
-            intrinsics=intrinsics,
-            target_mask=target_mask,
+            object_point_cloud=object_point_cloud,
+            scene_point_cloud=scene_point_cloud,
             gripper_name=gripper_name,
-            min_object_points=min_object_points,
             collision_threshold=collision_threshold,
             **_planner_fields(
                 planner=planner,
