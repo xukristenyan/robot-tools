@@ -84,8 +84,10 @@ runtimes/graspgenx/.venv/bin/python -c \
 A full `git lfs fsck` of the selectively populated gripper repository will
 report the intentionally absent grippers. Validate the two required folders
 by loading both named grippers or by running a real named-gripper HTTP request.
-The jarjar verification covered named Franka/Robotiq, raw sweep-volume,
-scene-depth, and scene-point-cloud inference.
+The jarjar baseline covered named Franka/Robotiq and scene-depth inference
+before service API v4. The current `generate_safe_grasps` and
+`generate_safe_grasps_for_all` actions require a new real GPU run before they
+can be treated as end-to-end verified.
 
 ## Conditions that require revalidation
 

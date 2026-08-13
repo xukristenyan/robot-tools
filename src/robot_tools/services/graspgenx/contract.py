@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from typing import Literal
 
 import numpy as np
@@ -28,25 +27,6 @@ BranchTag = Literal["diff", "obb"]
 OBBMode = Literal["advanced", "pca"]
 OBBSkipRule = Literal["auto", "never"]
 OBBDensity = Literal["sparse", "dense", "dense-topandside"]
-
-FLAT_SWEEP_VOLUME_FIELDS = (
-    "extents_open",
-    "offset_open",
-    "extents_mid",
-    "offset_mid",
-)
-
-
-def _vector3(value: object, *, name: str, positive: bool = False) -> np.ndarray:
-    array = np.asarray(value, dtype=np.float32).reshape(-1)
-    if array.shape != (3,):
-        raise ValueError(f"{name} must contain exactly 3 values")
-    if not np.all(np.isfinite(array)):
-        raise ValueError(f"{name} must contain only finite values")
-    if positive and not np.all(array > 0):
-        raise ValueError(f"{name} must contain only positive values")
-    return array
-
 
 def _point_cloud(value: object, *, name: str, allow_empty: bool = False) -> np.ndarray:
     point_cloud = np.asarray(value, dtype=np.float32)
@@ -75,88 +55,6 @@ def _confidences(value: object) -> np.ndarray:
     if confidences.ndim != 1:
         raise ValueError("confidences must have shape (K,)")
     return confidences
-
-
-class SweepVolumeParams(BaseModel):
-    """Gripper conditioning used by the released sweep-volume-v2 model.
-
-    All distances are meters in the gripper base frame. ``+Z`` is the
-    approach direction and ``+X`` is the closing direction.
-    """
-
-    model_config = ConfigDict(arbitrary_types_allowed=True, extra="forbid")
-
-    extents_open: np.ndarray
-    offset_open: np.ndarray
-    extents_mid: np.ndarray
-    offset_mid: np.ndarray
-    gripper_type: Literal[0, 1, 2] = 0
-    fingertip_depth: float | None = Field(default=None, gt=0)
-
-    @field_validator("extents_open", "extents_mid", mode="before")
-    @classmethod
-    def _validate_extents(cls, value: object, info) -> np.ndarray:
-        return _vector3(value, name=info.field_name, positive=True)
-
-    @field_validator("offset_open", "offset_mid", mode="before")
-    @classmethod
-    def _validate_offsets(cls, value: object, info) -> np.ndarray:
-        return _vector3(value, name=info.field_name)
-
-    @property
-    def resolved_fingertip_depth(self) -> float:
-        if self.fingertip_depth is not None:
-            return float(self.fingertip_depth)
-        return float(self.offset_open[2] + self.extents_open[2] / 2.0)
-
-    @property
-    def jaw_width(self) -> float:
-        return float(self.extents_open[0])
-
-    def to_flat(self) -> np.ndarray:
-        return np.concatenate([getattr(self, field) for field in FLAT_SWEEP_VOLUME_FIELDS]).astype(np.float32)
-
-    def to_wire(self) -> dict:
-        return self.model_dump()
-
-    def cache_key(self) -> str:
-        rounded = np.round(self.to_flat().astype(np.float64), 6)
-        payload = (
-            rounded.tobytes()
-            + int(self.gripper_type).to_bytes(1, byteorder="big")
-            + np.float64(round(self.resolved_fingertip_depth, 6)).tobytes()
-        )
-        return hashlib.sha256(payload).hexdigest()
-
-    @classmethod
-    def from_flat(
-        cls,
-        flat: object,
-        *,
-        gripper_type: Literal[0, 1, 2] = 0,
-        fingertip_depth: float | None = None,
-    ) -> SweepVolumeParams:
-        values = np.asarray(flat, dtype=np.float32).reshape(-1)
-        if values.shape != (12,):
-            raise ValueError("flat sweep-volume conditioning must contain 12 values")
-        return cls(
-            extents_open=values[0:3],
-            offset_open=values[3:6],
-            extents_mid=values[6:9],
-            offset_mid=values[9:12],
-            gripper_type=gripper_type,
-            fingertip_depth=fingertip_depth,
-        )
-
-    @classmethod
-    def coerce(cls, value: object) -> SweepVolumeParams:
-        if isinstance(value, cls):
-            return value
-        if isinstance(value, dict):
-            return cls.model_validate(value)
-        if isinstance(value, (np.ndarray, list, tuple)):
-            return cls.from_flat(value)
-        raise TypeError("sweep_volume_params must be SweepVolumeParams, a mapping, or a flat 12-value array")
 
 
 class _GraspGenXRequest(BaseRequest):
@@ -436,5 +334,4 @@ __all__ = [
     "Planner",
     "PlannerRequest",
     "PrecisionMetadata",
-    "SweepVolumeParams",
 ]

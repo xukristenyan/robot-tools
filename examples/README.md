@@ -8,7 +8,7 @@ multi-service pipeline:
 | `fastfs_stereo.py` | Stereo images → disparity → metric depth |
 | `sam3_segment.py` | Image + text or click → masks |
 | `graspgen_basic.py` | Object/scene point clouds → grasp poses |
-| `graspgenx_native.py` | Object point cloud + named gripper → grasp poses |
+| `graspgenx_native.py` | Object point cloud + named gripper → grasp poses, optionally filtered against a surrounding scene |
 | `pipeline_stereo_to_grasp.py` | FastFS → SAM3 → backprojection → GraspGen |
 
 ## Before running an example
@@ -53,9 +53,10 @@ uv run --with pillow python examples/sam3_segment.py \
 uv run python examples/graspgen_basic.py \
   --object data/object_pc.npy --scene data/scene_pc.npy
 
-# Native GraspGenX named-gripper inference.
+# GraspGenX named-gripper inference; add --scene for collision filtering.
 uv run python examples/graspgenx_native.py \
-  --object data/object_pc.npy --gripper robotiq_2f_85
+  --object data/object_pc.npy --gripper robotiq_2f_85 \
+  --scene data/scene_pc_without_object.npy
 
 # Full stereo → segmentation → collision-free grasp pipeline.
 uv run --with pillow python examples/pipeline_stereo_to_grasp.py \
@@ -86,6 +87,9 @@ client method arguments.
   same resolution.
 - Point clouds are `.npy` arrays with shape `(N, 3)`, `float32`, in camera
   frame meters.
+- The GraspGenX `--scene` point cloud must use the same frame as `--object`
+  and must already exclude the target object's points. The server downsamples
+  it when needed; it does not remove the target object for this action.
 - Camera intrinsics use pixel units for `fx`, `fy`, `cx`, and `cy`;
   stereo baseline is in meters.
 - Grasp poses are `(K, 4, 4)` transforms in the coordinate frame documented

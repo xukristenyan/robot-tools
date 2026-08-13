@@ -7,16 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from robot_tools.services.graspgenx import GraspGenXClient
-from robot_tools.services.graspgenx.contract import InferRequest, SweepVolumeParams
-
-
-def _sweep_volume() -> SweepVolumeParams:
-    return SweepVolumeParams(
-        extents_open=[0.085, 0.04, 0.12],
-        offset_open=[0.0, 0.0, 0.06],
-        extents_mid=[0.045, 0.04, 0.12],
-        offset_mid=[0.0, 0.0, 0.06],
-    )
+from robot_tools.services.graspgenx.contract import GenerateGraspsRequest
 
 
 def _call_inference(
@@ -31,33 +22,29 @@ def _call_inference(
         "topk_num_grasps": topk_num_grasps,
     }
     point_cloud = np.zeros((4, 3), dtype=np.float32)
-    sweep_volume = _sweep_volume()
+    depth = np.ones((2, 2), dtype=np.float32)
+    intrinsics = np.eye(3, dtype=np.float32)
+    instance_mask = np.ones((2, 2), dtype=np.int32)
 
-    if method_name == "infer":
-        return client.infer(point_cloud, **selection)
-    if method_name == "infer_object":
-        return client.infer_object(point_cloud, sweep_volume, **selection)
-    if method_name == "infer_scene_depth":
-        return client.infer_scene_depth(
-            np.ones((2, 2), dtype=np.float32),
-            np.eye(3, dtype=np.float32),
-            np.ones((2, 2), dtype=np.int32),
-            sweep_volume,
-            **selection,
-        )
-    if method_name == "infer_scene_pc":
-        return client.infer_scene_pc(
-            point_cloud,
-            np.ones(4, dtype=np.int32),
-            sweep_volume,
-            **selection,
-        )
+    if method_name == "generate_grasps":
+        return client.generate_grasps(point_cloud, **selection)
+    if method_name == "generate_safe_grasps":
+        return client.generate_safe_grasps(point_cloud, point_cloud, **selection)
+    if method_name == "generate_grasps_for_all":
+        return client.generate_grasps_for_all(depth, intrinsics, instance_mask, **selection)
+    if method_name == "generate_safe_grasps_for_all":
+        return client.generate_safe_grasps_for_all(depth, intrinsics, instance_mask, **selection)
     raise AssertionError(f"unhandled method: {method_name}")
 
 
 @pytest.mark.parametrize(
     "method_name",
-    ["infer", "infer_object", "infer_scene_depth", "infer_scene_pc"],
+    [
+        "generate_grasps",
+        "generate_safe_grasps",
+        "generate_grasps_for_all",
+        "generate_safe_grasps_for_all",
+    ],
 )
 @pytest.mark.parametrize(
     ("grasp_threshold", "topk_num_grasps"),
@@ -112,7 +99,7 @@ def test_selection_accepts_numpy_scalars_before_request(monkeypatch):
 
         result = _call_inference(
             client,
-            "infer",
+            "generate_grasps",
             grasp_threshold=np.float32(0.25),
             topk_num_grasps=np.int64(3),
         )
@@ -126,9 +113,9 @@ def test_selection_accepts_numpy_scalars_before_request(monkeypatch):
 
 @pytest.mark.parametrize("field", ["grasp_threshold", "topk_num_grasps"])
 @pytest.mark.parametrize("boolean", [True, False, np.bool_(True), np.bool_(False)])
-def test_infer_contract_rejects_boolean_selection(field, boolean):
+def test_generate_grasps_contract_rejects_boolean_selection(field, boolean):
     with pytest.raises(ValidationError, match=rf"{field} must not be boolean"):
-        InferRequest(
+        GenerateGraspsRequest(
             point_cloud=np.zeros((4, 3), dtype=np.float32),
             **{field: boolean},
         )

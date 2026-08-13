@@ -14,11 +14,10 @@ from pydantic import ValidationError
 from robot_tools.services.graspgenx import GraspGenXClient
 from robot_tools.services.graspgenx.contract import (
     ACTIONS,
-    InferObjectRequest,
-    InferObjectResponse,
-    InferSceneDepthRequest,
-    InferScenePointCloudRequest,
-    SweepVolumeParams,
+    API_VERSION,
+    GenerateGraspsForAllRequest,
+    GenerateGraspsForAllResponse,
+    GenerateSafeGraspsRequest,
 )
 
 
@@ -71,106 +70,63 @@ def graspgenx_fake_port():
     thread.join(timeout=5)
 
 
-@pytest.fixture()
-def sweep_volume() -> SweepVolumeParams:
-    return SweepVolumeParams(
-        extents_open=np.array([0.085, 0.04, 0.12], dtype=np.float32),
-        offset_open=np.array([0.0, 0.0, 0.06], dtype=np.float32),
-        extents_mid=np.array([0.045, 0.04, 0.12], dtype=np.float32),
-        offset_mid=np.array([0.0, 0.0, 0.06], dtype=np.float32),
-        gripper_type=0,
-        fingertip_depth=0.12,
-    )
-
-
-def test_sweep_volume_roundtrip_and_validation(sweep_volume):
-    flat = sweep_volume.to_flat()
-    restored = SweepVolumeParams.from_flat(
-        flat,
-        gripper_type=sweep_volume.gripper_type,
-        fingertip_depth=sweep_volume.fingertip_depth,
-    )
-
-    assert flat.shape == (12,)
-    assert flat.dtype == np.float32
-    np.testing.assert_array_equal(restored.to_flat(), flat)
-    assert restored.cache_key() == sweep_volume.cache_key()
-    assert restored.jaw_width == pytest.approx(0.085)
-
-    with pytest.raises(ValidationError, match="positive"):
-        SweepVolumeParams(
-            extents_open=[0.0, 0.04, 0.12],
-            offset_open=[0.0, 0.0, 0.06],
-            extents_mid=[0.04, 0.04, 0.12],
-            offset_mid=[0.0, 0.0, 0.06],
-        )
-    with pytest.raises(ValueError, match="12 values"):
-        SweepVolumeParams.from_flat(np.zeros(11, dtype=np.float32))
-
-
-def test_native_requests_reject_server_side_selection_fields(sweep_volume):
-    with pytest.raises(ValidationError, match="grasp_threshold"):
-        InferObjectRequest.model_validate(
+def test_public_contract_rejects_raw_sweep_volume() -> None:
+    with pytest.raises(ValidationError, match="sweep_volume_params"):
+        GenerateSafeGraspsRequest.model_validate(
             {
-                "action": "infer_object",
-                "point_cloud": np.zeros((10, 3), dtype=np.float32),
-                "sweep_volume_params": sweep_volume.model_dump(),
-                "grasp_threshold": 0.5,
+                "object_point_cloud": np.zeros((10, 3), dtype=np.float32),
+                "scene_point_cloud": np.zeros((20, 3), dtype=np.float32),
+                "gripper_name": "robotiq_2f_85",
+                "sweep_volume_params": np.zeros(12, dtype=np.float32),
             }
         )
 
 
-def test_scene_contracts_validate_depth_dtype_and_mask_shape(sweep_volume):
+def test_scene_contract_validates_depth_dtype_and_mask_shape() -> None:
     with pytest.raises(ValidationError, match="floating-point meters"):
-        InferSceneDepthRequest(
+        GenerateGraspsForAllRequest(
             depth=np.ones((2, 2), dtype=np.uint16),
             intrinsics=np.eye(3),
             instance_mask=np.ones((2, 2), dtype=np.int32),
-            sweep_volume_params=sweep_volume,
         )
-    with pytest.raises(ValidationError, match="instance_mask size"):
-        InferScenePointCloudRequest(
-            point_cloud=np.zeros((5, 3), dtype=np.float32),
-            instance_mask=np.ones(4, dtype=np.int32),
-            sweep_volume_params=sweep_volume,
+    with pytest.raises(ValidationError, match="shape must match depth"):
+        GenerateGraspsForAllRequest(
+            depth=np.ones((2, 2), dtype=np.float32),
+            intrinsics=np.eye(3),
+            instance_mask=np.ones((2, 3), dtype=np.int32),
         )
 
 
-def test_response_rejects_misaligned_branch_tags():
+def test_scene_response_rejects_misaligned_branch_tags() -> None:
     with pytest.raises(ValidationError, match="lengths must match"):
-        InferObjectResponse(
-            grasps=np.tile(np.eye(4, dtype=np.float32), (2, 1, 1)),
-            confidences=np.ones(2, dtype=np.float32),
-            branch_tags=["diff"],
+        GenerateGraspsForAllResponse(
+            instance_ids=np.array([1], dtype=np.int32),
+            grasps=[np.tile(np.eye(4, dtype=np.float32), (2, 1, 1))],
+            confidences=[np.ones(2, dtype=np.float32)],
+            branch_tags=[["diff"]],
+            skipped_instance_ids=np.empty((0,), dtype=np.int32),
+            gripper_name="robotiq_2f_85",
             timing={"infer_ms": 1.0},
         )
 
 
-def test_health_and_metadata_expose_native_actions(graspgenx_fake_port):
-    with GraspGenXClient(
-        host="127.0.0.1",
-        port=graspgenx_fake_port,
-        timeout_ms=2_000,
-    ) as client:
+def test_health_and_metadata_expose_v4_actions(graspgenx_fake_port) -> None:
+    with GraspGenXClient(host="127.0.0.1", port=graspgenx_fake_port, timeout_ms=2_000) as client:
         health = client.health()
         metadata = client.server_metadata
 
     assert set(health["actions"]) == set(ACTIONS)
-    assert health["api_version"] == "2"
+    assert health["api_version"] == API_VERSION
     assert metadata.default_gripper == "robotiq_2f_85"
     assert metadata.loaded_grippers == ["robotiq_2f_85"]
     assert metadata.actions == sorted(ACTIONS)
     assert metadata.precision.tensorrt is False
 
 
-def test_named_gripper_infer_uses_official_fields(graspgenx_fake_port):
+def test_generate_grasps_uses_named_gripper(graspgenx_fake_port) -> None:
     point_cloud = np.zeros((2048, 3), dtype=np.float32)
-    with GraspGenXClient(
-        host="127.0.0.1",
-        port=graspgenx_fake_port,
-        timeout_ms=2_000,
-    ) as client:
-        response = client.infer(
+    with GraspGenXClient(host="127.0.0.1", port=graspgenx_fake_port, timeout_ms=2_000) as client:
+        response = client.generate_grasps(
             point_cloud,
             num_grasps=10,
             grasp_threshold=0.5,
@@ -185,20 +141,13 @@ def test_named_gripper_infer_uses_official_fields(graspgenx_fake_port):
 
 
 @pytest.mark.parametrize("planner", ["diffusion", "graspmoe"])
-def test_object_infer_preserves_tags_and_filters_client_side(
-    graspgenx_fake_port,
-    sweep_volume,
-    planner,
-):
-    point_cloud = np.zeros((2048, 3), dtype=np.float32)
-    with GraspGenXClient(
-        host="127.0.0.1",
-        port=graspgenx_fake_port,
-        timeout_ms=2_000,
-    ) as client:
-        response = client.infer_object(
-            point_cloud,
-            sweep_volume,
+def test_generate_safe_grasps_filters_client_side(graspgenx_fake_port, planner) -> None:
+    object_point_cloud = np.zeros((2048, 3), dtype=np.float32)
+    scene_point_cloud = np.ones((1024, 3), dtype=np.float32)
+    with GraspGenXClient(host="127.0.0.1", port=graspgenx_fake_port, timeout_ms=2_000) as client:
+        response = client.generate_safe_grasps(
+            object_point_cloud,
+            scene_point_cloud,
             planner=planner,
             num_grasps=8,
             grasp_threshold=0.4,
@@ -206,20 +155,14 @@ def test_object_infer_preserves_tags_and_filters_client_side(
             moe_obb_density="dense-topandside",
         )
 
+    assert response.gripper_name == "robotiq_2f_85"
     assert response.grasps.shape == (3, 4, 4)
     assert response.confidences.shape == (3,)
-    assert len(response.branch_tags) == 3
     assert np.all(response.confidences[:-1] >= response.confidences[1:])
-    if planner == "diffusion":
-        assert set(response.branch_tags) == {"diff"}
-    else:
-        assert set(response.branch_tags) == {"diff", "obb"}
 
 
-def test_scene_depth_batches_instances_and_reports_skips(
-    graspgenx_fake_port,
-    sweep_volume,
-):
+@pytest.mark.parametrize("method_name", ["generate_grasps_for_all", "generate_safe_grasps_for_all"])
+def test_scene_actions_batch_instances_and_report_skips(graspgenx_fake_port, method_name) -> None:
     depth = np.ones((3, 4), dtype=np.float32)
     mask = np.array(
         [
@@ -234,53 +177,21 @@ def test_scene_depth_batches_instances_and_reports_skips(
         dtype=np.float64,
     )
 
-    with GraspGenXClient(
-        host="127.0.0.1",
-        port=graspgenx_fake_port,
-        timeout_ms=2_000,
-    ) as client:
-        response = client.infer_scene_depth(
+    with GraspGenXClient(host="127.0.0.1", port=graspgenx_fake_port, timeout_ms=2_000) as client:
+        method = getattr(client, method_name)
+        response = method(
             depth,
             intrinsics,
             mask,
-            sweep_volume,
             min_object_points=3,
             num_grasps=6,
             topk_num_grasps=2,
         )
         by_id = client.scene_results_by_id(response)
 
+    assert response.gripper_name == "robotiq_2f_85"
     assert response.instance_ids.tolist() == [1]
     assert response.skipped_instance_ids.tolist() == [2]
     assert set(by_id) == {1}
     assert by_id[1][0].shape == (2, 4, 4)
     assert len(by_id[1][2]) == 2
-
-
-def test_scene_point_cloud_ignores_nonfinite_points(
-    graspgenx_fake_port,
-    sweep_volume,
-):
-    point_cloud = np.zeros((2, 4, 3), dtype=np.float32)
-    point_cloud[1, 0] = np.nan
-    mask = np.array([[3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.int32)
-
-    with GraspGenXClient(
-        host="127.0.0.1",
-        port=graspgenx_fake_port,
-        timeout_ms=2_000,
-    ) as client:
-        response = client.infer_scene_pc(
-            point_cloud,
-            mask,
-            sweep_volume,
-            planner="diffusion",
-            min_object_points=4,
-            num_grasps=4,
-            topk_num_grasps=-1,
-        )
-
-    assert response.instance_ids.tolist() == [3]
-    assert response.skipped_instance_ids.tolist() == [4]
-    assert response.grasps[0].shape == (4, 4, 4)
-    assert set(response.branch_tags[0]) == {"diff"}

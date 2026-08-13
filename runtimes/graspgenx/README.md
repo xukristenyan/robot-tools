@@ -31,13 +31,15 @@ service.
 
 `graspmoe` is the native default planner: diffusion candidates are combined
 with OBB-generated candidates and all are scored by the discriminator.
-`diffusion` selects only the learned diffusion branch. Native sweep-volume
+`diffusion` selects only the learned diffusion branch. Per-instance scene
 responses include a `diff` or `obb` tag for every grasp.
 
-For planner-based actions, the server returns all candidates. The synchronous
-client applies `grasp_threshold` and `topk_num_grasps` locally, matching the
-official GraspGenX client. This preserves raw results and avoids confusing
-upstream's per-retry internal top-k with a final global top-k.
+For `generate_safe_grasps` and both scene actions, the server returns all
+candidates that survive any requested collision filtering. The synchronous
+client then applies `grasp_threshold` and `topk_num_grasps` locally. This
+preserves the planner result and keeps final selection consistent across these
+actions. `generate_grasps` uses the upstream named-gripper inference path and
+passes its selection controls directly to that path.
 
 ## Client examples
 
@@ -64,7 +66,7 @@ from robot_tools.services.graspgenx import GraspGenXClient
 
 with GraspGenXClient(host="127.0.0.1", port=5559) as client:
     result = client.generate_safe_grasps(
-        object_xyz,              # selected object, camera frame, meters
+        object_xyz,                # selected object, camera frame, meters
         scene_xyz_without_object,  # surrounding collision scene, same frame
         gripper_name="robotiq_2f_85",
         planner="graspmoe",
@@ -88,13 +90,34 @@ result = client.generate_grasps_for_all(
 by_instance = client.scene_results_by_id(result)
 ```
 
+Use `generate_safe_grasps_for_all` with the same depth inputs when every
+instance should also be checked against the rest of the scene:
+
+```python
+result = client.generate_safe_grasps_for_all(
+    depth_meters,
+    intrinsics_3x3,
+    instance_mask,
+    gripper_name="robotiq_2f_85",
+    collision_threshold=0.005,
+)
+```
+
 Depth must be floating point in meters. Instance mask value `0` means
 background/ignore. All inputs and returned poses stay in the input camera or
-point-cloud frame. `generate_safe_grasps` expects the caller to exclude the
-target object from `scene_xyz_without_object`; the server caps that collision
-scene at 8192 points and checks the named gripper collision mesh. This is a
-static gripper-versus-scene clearance test, not arm, path, or robot motion
-planning.
+point-cloud frame.
+
+For `generate_safe_grasps`, the caller owns the split: `object_xyz` contains
+the selected object, while `scene_xyz_without_object` contains its surrounding
+scene with that object's points already removed. The backend caps the supplied
+scene at 8192 points and checks the selected named gripper's collision mesh; it
+does not subtract the object from this caller-supplied scene.
+
+For `generate_safe_grasps_for_all`, the backend owns the split. It
+backprojects depth, extracts each instance from `instance_mask`, removes that
+instance from its collision scene, downsamples the remainder, and filters that
+instance's grasps. Both safe actions are static gripper-versus-scene clearance
+tests, not arm, path, or robot motion planning.
 
 ## Layout
 
@@ -176,7 +199,7 @@ Useful startup arguments:
 - `--assets-dir /path/to/assets` — fallback root containing `x_grippers/` and
   `proc_grippers/`; official `gripper_descriptions` is resolved first.
 - `--default-gripper robotiq_2f_85` — optional preload and fallback for
-  name-based `infer` requests. Other named grippers remain request-selectable
+  named-gripper requests. Other named grippers remain request-selectable
   and are cached lazily.
 - `--tensorrt --tensorrt-precision fp32|fp16` — opt-in upstream acceleration;
   not part of the currently tested jarjar baseline.
@@ -211,19 +234,23 @@ git -C "$GRASPGENX_GRIPPER_CFG_DIR" lfs pull \
 
 ## RTX 5090 verification
 
-Verified on jarjar with two RTX 5090 GPUs, driver 580.173.02, Python 3.10.20,
-Torch 2.10.0+cu128, and the official `release` checkpoints. The locked
-inference environment contains 101 resolved packages and occupies about 7.2
-GiB (most of that is PyTorch/CUDA). The temporary test server used GPU 1 and
-was stopped afterwards.
+The runtime and model baseline was verified on jarjar with two RTX 5090 GPUs,
+driver 580.173.02, Python 3.10.20, Torch 2.10.0+cu128, and the official
+`release` checkpoints. The locked inference environment contains 101 resolved
+packages and occupies about 7.2 GiB (most of that is PyTorch/CUDA). The
+temporary test server used GPU 1 and was stopped afterwards.
 
 | Path | Official sample/result | Server inference |
 |---|---|---:|
 | named `robotiq_2f_85` | 30 grasps, confidence 0.725–0.908 | 1.160 s cold/warm-up |
 | named `franka_panda` | 30 grasps, confidence 0.656–0.912 | 0.895 s |
-| raw sweep + GraspMoE | client final top-10: 7 `obb`, 3 `diff` | 0.217 s |
 | scene depth, IDs 101/102 | 5 grasps per instance, no skips | 0.270 s |
-| organized scene PC, IDs 101/102 | 5 grasps per instance, no skips | 0.276 s |
+
+These measurements predate service API v4. They validate the named-gripper
+model/runtime baseline, not the current HTTP action names or the two safe-action
+collision paths. `generate_safe_grasps` and
+`generate_safe_grasps_for_all` still require a real API v4 GPU run before this
+section can claim end-to-end validation for them.
 
 During a 200-candidate inference, `/health` responded in about 0.93 ms and GPU
 memory peaked at about 1,769 MiB. Admission behaved as configured: one running,
@@ -245,5 +272,6 @@ uv run --no-sync python upstream/scripts/gripper_config_wizard.py \
   --port 8081
 ```
 
-For inference-only integrations that already know the two sweep boxes, use
-`SweepVolumeParams` instead; it needs no named server asset.
+After generating the asset, make it available under the configured
+`GRASPGENX_GRIPPER_CFG_DIR` and pass `gripper_name="my_gripper"`. The
+robot-tools API intentionally does not accept raw sweep-volume parameters.
