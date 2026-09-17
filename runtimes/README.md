@@ -10,6 +10,7 @@ runtime:
 - [`fastfs/PREREQUISITES.md`](fastfs/PREREQUISITES.md)
 - [`graspgen/PREREQUISITES.md`](graspgen/PREREQUISITES.md)
 - [`graspgenx/PREREQUISITES.md`](graspgenx/PREREQUISITES.md)
+- [`anyplace/PREREQUISITES.md`](anyplace/PREREQUISITES.md)
 
 ## Verified jarjar baseline
 
@@ -60,7 +61,7 @@ On machines with a large `/data` filesystem:
 
 ```bash
 export ROBOT_TOOLS_MODELS_ROOT="/data/${USER}/robot-tools-models"
-mkdir -p "$ROBOT_TOOLS_MODELS_ROOT"/{sam3,fastfs,graspgen,graspgenx}
+mkdir -p "$ROBOT_TOOLS_MODELS_ROOT"/{sam3,fastfs,graspgen,graspgenx,anyplace}
 ```
 
 `ROBOT_TOOLS_MODELS_ROOT` is a documentation convention, not a variable read

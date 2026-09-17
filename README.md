@@ -27,6 +27,7 @@
 | GraspGen | `GraspGenClient` | `generate_grasps`, `generate_collision_free_grasps` | 5557 | [GraspGen](runtimes/graspgen/README.md) |
 | SAM 3 | `SAM3Client` | `segment_by_text`, `segment_by_point` | 5558 | [SAM3](runtimes/sam3/README.md) |
 | GraspGenX | `GraspGenXClient` | `get_metadata`, `generate_grasps`, `generate_safe_grasps`, `generate_grasps_for_all`, `generate_safe_grasps_for_all` | 5559 | [GraspGenX](runtimes/graspgenx/README.md) |
+| AnyPlace | `AnyPlaceClient` | `predict_placements` | 5560 | [AnyPlace](runtimes/anyplace/README.md) |
 
 The real runtimes have been verified on an RTX 5090. Each runtime's `PREREQUISITES.md` records its tested Python, Torch/CUDA, driver, upstream commit, storage, and acceptance checks.
 
@@ -119,6 +120,7 @@ First read the selected runtime's prerequisites:
 - [GraspGen prerequisites](runtimes/graspgen/PREREQUISITES.md)
 - [SAM3 prerequisites](runtimes/sam3/PREREQUISITES.md)
 - [GraspGenX prerequisites](runtimes/graspgenx/PREREQUISITES.md)
+- [AnyPlace prerequisites](runtimes/anyplace/PREREQUISITES.md)
 
 Keep only the services needed on this host in `services.yaml`, then run:
 

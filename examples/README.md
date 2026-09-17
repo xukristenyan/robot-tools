@@ -5,6 +5,7 @@ multi-service pipeline:
 
 | Script | Flow |
 |---|---|
+| `anyplace_placement.py` | Pick/place mask + RGBD + camera calibration → native relative placement transforms |
 | `fastfs_stereo.py` | Stereo images → disparity → metric depth |
 | `sam3_segment.py` | Image + text or click → masks |
 | `graspgen_basic.py` | Object/scene point clouds → grasp poses |
@@ -41,6 +42,11 @@ commands provide it as a temporary uv dependency.
 ## Run
 
 ```bash
+# AnyPlace; each NPZ contains rgb, depth in metres, mask, intrinsics,
+# and optionally camera_pose (camera-to-common-frame).
+uv run python examples/anyplace_placement.py \
+  --pick data/pick.npz --place data/place.npz
+
 # Stereo reconstruction; saves depth.npy by default.
 uv run --with pillow python examples/fastfs_stereo.py \
   --left data/left.png --right data/right.png

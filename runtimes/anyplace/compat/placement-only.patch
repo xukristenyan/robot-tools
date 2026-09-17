@@ -1,0 +1,139 @@
+--- a/anyplace/utils/torch_scatter_utils.py
++++ b/anyplace/utils/torch_scatter_utils.py
+@@ -2,11 +2,7 @@
+ import torch.nn as nn
+ import torch.nn.functional as F
+ 
+-from knn_cuda import KNN
+-from torch_cluster import fps as fps_cluster
+-from torch_cluster import knn as knn_cluster
+-from torch_cluster import grid_cluster
+-from torch_scatter import scatter_add, scatter_mean
++from anyplace_fps import native_fps
+ 
+ 
+ def fps(data, number, batch=None, random_start=False, return_idx=False):
+@@ -17,24 +13,16 @@
+         number int
+         batch B*N 1 (batch index for each point in the flattened input)
+     '''
+-    # torch geometric batching version
+-    bs, n_pts, pt_dim = data.shape[0], data.shape[1], data.shape[2]
+-    ratio = float(number / n_pts * 1.0)
+-
+-    # flatten data, supposing we have the batch tensor to index
+-    fps_idx = fps_cluster(data.reshape(-1, pt_dim), batch=batch, ratio=ratio, random_start=random_start)
+-    fps_data = data.reshape(-1, pt_dim)[fps_idx].reshape(bs, -1, pt_dim)
+-    if return_idx:
+-        out_idx = fps_idx.reshape(bs, -1) % n_pts
+-        return fps_data, out_idx
+-    else:
+-        return fps_data
++    return native_fps(data, number, random_start=random_start, return_idx=return_idx)
+ 
+ 
+ def knn_interpolate(x, pos_x, pos_y, batch_x=None, batch_y=None, k=3):
+     """
+     from torch_cluster
+     """
++    from torch_cluster import knn as knn_cluster
++    from torch_scatter import scatter_add
++
+     with torch.no_grad():
+         assign_index = knn_cluster(pos_x, pos_y, k, batch_x=batch_x, batch_y=batch_y)
+         y_idx, x_idx = assign_index[0], assign_index[1]
+@@ -116,6 +104,7 @@
+         super().__init__()
+         self.num_group = num_group
+         self.group_size = group_size
++        from knn_cuda import KNN
+         self.knn = KNN(k=self.group_size, transpose_mode=True)
+         self.batch_idx = None
+ 
+--- a/anyplace/utils/anyplace/multistep_pose_regression_anyplace.py
++++ b/anyplace/utils/anyplace/multistep_pose_regression_anyplace.py
+@@ -4,7 +4,9 @@
+ import torch.nn as nn
+ import trimesh
+ import matplotlib.pyplot as plt
+-from airobot import log_warn, log_debug
++import logging
++log_warn = logging.getLogger(__name__).warning
++log_debug = logging.getLogger(__name__).debug
+ from anyplace.utils import util
+ from anyplace.utils.torch_util import angle_axis_to_rotation_matrix, transform_pcd_torch
+ from anyplace.utils.torch3d_util import matrix_to_axis_angle, axis_angle_to_matrix
+@@ -121,6 +123,9 @@
+     if success_model is not None:
+         success_model = success_model.eval()
+ 
++    if not viz:
++        viz_flags = []
++
+     child_pcd_original = child_pcd.copy()
+ 
+     rix1 = np.random.permutation(parent_pcd.shape[0])
+@@ -130,11 +135,13 @@
+     # Setup voxel affordance scene prediction
+     
+     # prep the region we will use for checking if final translations are valid (i.e., close enough to the parent)
+-    parent_pcd_obb = trimesh.PointCloud(parent_pcd).bounding_box_oriented
+-    util.meshcat_trimesh_show(mc_vis, f'scene/voxel_grid_world/parent_pcd_obb', parent_pcd_obb.to_mesh(), opacity=0.3)
++    parent_pcd_obb = None
++    if np.linalg.matrix_rank(parent_pcd - parent_pcd.mean(axis=0), tol=1e-8) == 3:
++        parent_pcd_obb = trimesh.PointCloud(parent_pcd).bounding_box_oriented
++        util.meshcat_trimesh_show(mc_vis, f'scene/voxel_grid_world/parent_pcd_obb', parent_pcd_obb.to_mesh(), opacity=0.3)
+ 
+     k_val = init_k_val
+-    if init_parent_mean:
++    if init_parent_mean or parent_pcd_obb is None:
+         # k_val = 1
+         world_pts = np.mean(parent_pcd, axis=0).reshape(1, 3)
+         world_pts = np.tile(world_pts, (k_val, 1))
+@@ -187,7 +194,7 @@
+         rand_rot_idx = np.random.randint(rot_grid.shape[0], size=M)
+         rand_rot_init = matrix_to_axis_angle(torch.from_numpy(rot_grid[rand_rot_idx])).float()
+         rand_mat_init = angle_axis_to_rotation_matrix(rand_rot_init)
+-        rand_mat_init = rand_mat_init.squeeze().float().cuda()
++        rand_mat_init = rand_mat_init.reshape(-1, 4, 4).float().cuda()
+     
+     # apply voxel location offsets (after un-centering with mean)
+     child_pcd_rot_batch = child_pcd_init_batch = transform_pcd_torch(child_pcd_cent_batch, rand_mat_init)  # M x N_child x 3
+@@ -638,11 +645,12 @@
+     ###############################################################
+     # Make final success output predictions
+     # put in FULL parent point cloud for final success classification
+-    pscene_mean = torch.mean(pscene_pcd_t, axis=0).reshape(1, 3)
+-    pscene_pcd_down_t = fps_downsample(pscene_pcd_t.reshape(1, -1, 3), 8192)
+-    pscene_pcd_cent_t = pscene_pcd_down_t - pscene_mean.repeat((8192, 1))
+-    policy_mi['parent_start_pcd'] = pscene_pcd_cent_t.reshape(1, -1, 3).repeat((refine_policy_mi['child_start_pcd'].shape[0], 1, 1))
+-    policy_mi['parent_start_pcd_mean'] = pscene_mean.repeat((refine_policy_mi['child_start_pcd'].shape[0], 1))
++    if not no_sc_score:
++        pscene_mean = torch.mean(pscene_pcd_t, axis=0).reshape(1, 3)
++        pscene_pcd_down_t = fps_downsample(pscene_pcd_t.reshape(1, -1, 3), 8192)
++        pscene_pcd_cent_t = pscene_pcd_down_t - pscene_mean.repeat((8192, 1))
++        policy_mi['parent_start_pcd'] = pscene_pcd_cent_t.reshape(1, -1, 3).repeat((refine_policy_mi['child_start_pcd'].shape[0], 1, 1))
++        policy_mi['parent_start_pcd_mean'] = pscene_mean.repeat((refine_policy_mi['child_start_pcd'].shape[0], 1))
+ 
+     # break into smaller batches
+     sm_bs = 8
+--- a/anyplace/utils/util.py
++++ b/anyplace/utils/util.py
+@@ -745,6 +745,8 @@
+         size (float): Size of the points
+ 
+     """
++    if mc_vis is None:
++        return
+     # color_orig = copy.deepcopy(color)
+     if point_cloud.shape[0] != 3:
+         point_cloud = point_cloud.swapaxes(0, 1)
+@@ -837,6 +839,8 @@
+         mc_vis: meshcat.Visualizer, name: str, 
+         trimesh_mesh: Trimesh, color: Tuple[int]=(128, 128, 128), 
+         opacity: float=1.0) -> None:
++    if mc_vis is None:
++        return
+     verts = trimesh_mesh.vertices
+     faces = trimesh_mesh.faces
+ 

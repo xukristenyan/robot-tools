@@ -24,6 +24,13 @@ class ServiceRuntimeSpec:
 
 
 SERVICE_REGISTRY: dict[str, ServiceRuntimeSpec] = {
+    "anyplace": ServiceRuntimeSpec(
+        service_id="anyplace",
+        runtime_dir=REPO_ROOT / "runtimes" / "anyplace",
+        server_command=("python", "server.py"),
+        default_port=5560,
+        gpu_required=True,
+    ),
     "graspgen": ServiceRuntimeSpec(
         service_id="graspgen",
         runtime_dir=REPO_ROOT / "runtimes" / "graspgen",

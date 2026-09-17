@@ -19,6 +19,12 @@
 # dependencies, or weights. Drop --fake after install + download.
 
 services:
+  - name: anyplace
+    port: 5560
+    # Real: [] uses ANYPLACE_WEIGHTS_DIR/anyplace_multitask/model.pth
+    # Or: ["--checkpoint", "/absolute/path/model.pth"]
+    extra_args: ["--fake"]
+
   - name: graspgen
     port: 5557
     # host: 0.0.0.0                          # trusted/firewalled LAN only

@@ -1,0 +1,35 @@
+[project]
+name = "robot-tools-anyplace-real-runtime"
+version = "0.1.0"
+description = "AnyPlace diffusion inference only; no grasp, VLM, or simulator."
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "robot-tools[server]",
+    "torch==2.10.0",
+    "numpy>=1.26,<2",
+    "scipy",
+    "trimesh",
+    "rtree",
+    "healpy",
+    "meshcat",
+    "matplotlib",
+    "yacs",
+    "einops",
+    "pillow",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../../..", editable = true }
+torch = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

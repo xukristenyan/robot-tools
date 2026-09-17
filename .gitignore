@@ -17,8 +17,13 @@ checkpoints/
 weights/
 *.pt
 *.pth
+*.pth.partial
 *.ckpt
 *.safetensors
+
+# AnyPlace checkpoint archive, including interrupted downloads.
+anyplace_ckpts.zip
+anyplace_ckpts.zip.partial
 
 # Editor / OS
 .vscode/
@@ -60,3 +65,4 @@ logs/
 /data/
 /depth.npy
 /sam3_out/
+anyplace_relative.npz

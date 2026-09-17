@@ -14,3 +14,7 @@
 	path = runtimes/graspgenx/upstream
 	url = https://github.com/NVlabs/GraspGenX.git
 	ignore = dirty
+[submodule "runtimes/anyplace/upstream"]
+	path = runtimes/anyplace/upstream
+	url = https://github.com/ac-rad/anyplace.git
+	ignore = dirty

@@ -4,6 +4,10 @@
 # this file. Drop the --fake flags once install + download are done.
 
 services:
+  - name: anyplace
+    port: 5560
+    extra_args: ["--fake"]
+
   - name: graspgen
     port: 5557
     # gpu: 0                                 # CUDA_VISIBLE_DEVICES (omit for default GPU)

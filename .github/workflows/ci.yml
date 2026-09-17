@@ -22,13 +22,14 @@ jobs:
       - run: uv run --python ${{ matrix.python-version }} ruff format --check src tests
       - run: uv lock --check
       - run: |
-          for service in sam3 fastfs graspgen graspgenx; do
+          for service in sam3 fastfs graspgen graspgenx anyplace; do
             uv lock --check --project "runtimes/${service}"
           done
       # The real lock intentionally points at an uninitialized SAM3 submodule.
       # Fake CI verifies that it exists; selected real hosts validate freshness
       # after `install` initializes only this upstream.
       - run: uv lock --check-exists --project runtimes/sam3/real
+      - run: uv lock --check --project runtimes/anyplace/real
 
   client-only:
     runs-on: ubuntu-latest

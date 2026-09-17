@@ -1,0 +1,13 @@
+[project]
+name = "robot-tools-anyplace-runtime"
+version = "0.1.0"
+description = "AnyPlace low-level placement server (light/fake environment)."
+requires-python = ">=3.10,<3.11"
+dependencies = ["robot-tools[server]"]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[tool.uv]
+package = false
+python-preference = "only-managed"

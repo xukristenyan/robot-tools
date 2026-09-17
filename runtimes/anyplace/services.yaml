@@ -1,0 +1,7 @@
+# Selected real AnyPlace deployment. Uses the official multitask checkpoint.
+# Run from the repository root: uv run robot-tools launch runtimes/anyplace/services.yaml
+services:
+  - name: anyplace
+    host: 127.0.0.1
+    port: 5560
+    gpu: 0

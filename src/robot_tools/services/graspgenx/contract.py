@@ -1,6 +1,5 @@
 """Typed contracts for the robot-tools GraspGenX service."""
 
-
 from __future__ import annotations
 
 from typing import Literal
@@ -27,6 +26,7 @@ BranchTag = Literal["diff", "obb"]
 OBBMode = Literal["advanced", "pca"]
 OBBSkipRule = Literal["auto", "never"]
 OBBDensity = Literal["sparse", "dense", "dense-topandside"]
+
 
 def _point_cloud(value: object, *, name: str, allow_empty: bool = False) -> np.ndarray:
     point_cloud = np.asarray(value, dtype=np.float32)
