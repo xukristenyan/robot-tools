@@ -1,0 +1,13 @@
+[project]
+name = "robot-tools-pointsam-runtime"
+version = "0.1.0"
+description = "Promptable Point-SAM 3D segmentation service."
+requires-python = ">=3.12,<3.13"
+dependencies = ["robot-tools[server]"]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[tool.uv]
+package = false
+python-preference = "only-managed"

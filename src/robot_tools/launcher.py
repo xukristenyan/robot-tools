@@ -222,12 +222,24 @@ def _shutdown(procs: list[tuple[str, subprocess.Popen]], grace: float = 5.0) -> 
 def _status_client_types():
     """Return typed clients keyed by the service identities they accept."""
     from robot_tools.services.anyplace import AnyPlaceClient
+    from robot_tools.services.curobo import CuroboClient
+    from robot_tools.services.depth_anything_v2 import DepthAnythingV2Client
     from robot_tools.services.fastfs import FastFSClient
     from robot_tools.services.graspgen import GraspGenClient
     from robot_tools.services.graspgenx import GraspGenXClient
+    from robot_tools.services.pointsam import PointSAMClient
     from robot_tools.services.sam3 import SAM3Client
 
-    client_types = (AnyPlaceClient, FastFSClient, GraspGenClient, GraspGenXClient, SAM3Client)
+    client_types = (
+        AnyPlaceClient,
+        CuroboClient,
+        DepthAnythingV2Client,
+        FastFSClient,
+        GraspGenClient,
+        GraspGenXClient,
+        SAM3Client,
+        PointSAMClient,
+    )
     return {
         service_id: client_type for client_type in client_types for service_id in client_type.SUPPORTED_SERVICE_APIS
     }
@@ -296,6 +308,8 @@ def _run_runtime_script(spec: ServiceRuntimeSpec, script: str) -> None:
 
 
 def _init_upstream(spec: ServiceRuntimeSpec) -> None:
+    if not spec.upstream_submodule:
+        return
     upstream = spec.runtime_dir / "upstream"
     relative = upstream.relative_to(REPO_ROOT)
     logger.info("[%s] initializing only %s", spec.service_id, relative)

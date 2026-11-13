@@ -21,9 +21,32 @@ class ServiceRuntimeSpec:
     server_command: tuple[str, ...]  # command after ``uv run``
     default_port: int
     gpu_required: bool = True
+    upstream_submodule: bool = True  # False when install.sh owns an external pinned source.
 
 
 SERVICE_REGISTRY: dict[str, ServiceRuntimeSpec] = {
+    "pointsam": ServiceRuntimeSpec(
+        service_id="pointsam",
+        runtime_dir=REPO_ROOT / "runtimes" / "pointsam",
+        server_command=("python", "server.py"),
+        default_port=5563,
+        gpu_required=True,
+        upstream_submodule=False,
+    ),
+    "curobo": ServiceRuntimeSpec(
+        service_id="curobo",
+        runtime_dir=REPO_ROOT / "runtimes" / "curobo",
+        server_command=("python", "server.py"),
+        default_port=5562,
+        gpu_required=True,
+    ),
+    "depth_anything_v2": ServiceRuntimeSpec(
+        service_id="depth_anything_v2",
+        runtime_dir=REPO_ROOT / "runtimes" / "depth_anything_v2",
+        server_command=("python", "server.py"),
+        default_port=5561,
+        gpu_required=True,
+    ),
     "anyplace": ServiceRuntimeSpec(
         service_id="anyplace",
         runtime_dir=REPO_ROOT / "runtimes" / "anyplace",

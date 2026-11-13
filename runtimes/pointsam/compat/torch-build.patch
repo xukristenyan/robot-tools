@@ -1,0 +1,10 @@
+--- a/setup.py
++++ b/setup.py
+@@ -99,6 +99,6 @@
+     # include_package_data=True,
+     ext_modules=get_extensions(),
+     cmdclass={
+-        "build_ext": BuildExtension.with_options(no_python_abi_suffix=True),
++        "build_ext": BuildExtension,
+     },
+ )

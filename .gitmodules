@@ -18,3 +18,11 @@
 	path = runtimes/anyplace/upstream
 	url = https://github.com/ac-rad/anyplace.git
 	ignore = dirty
+[submodule "runtimes/depth_anything_v2/upstream"]
+	path = runtimes/depth_anything_v2/upstream
+	url = https://github.com/DepthAnything/Depth-Anything-V2.git
+	ignore = dirty
+[submodule "runtimes/curobo/upstream"]
+	path = runtimes/curobo/upstream
+	url = https://github.com/NVlabs/curobo.git
+	ignore = dirty

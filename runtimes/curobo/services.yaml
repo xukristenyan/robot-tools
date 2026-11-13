@@ -1,0 +1,6 @@
+services:
+  - name: curobo
+    host: 127.0.0.1
+    port: 5562
+    gpu: 1
+    extra_args: ["--robot-config", "franka.yml", "--collision-margin", "0.01"]

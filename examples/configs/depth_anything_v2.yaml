@@ -1,0 +1,2 @@
+# null uses the server default (518). Larger values increase inference cost.
+input_size: null

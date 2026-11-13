@@ -27,7 +27,7 @@ def test_record_validate_and_clear_real_install(tmp_path):
     assert validate_real_install(runtime_dir) is None
     payload = json.loads(marker.read_text())
     assert payload["service_id"] == "fastfs"
-    assert len(payload["real_lock_sha256"]) == 64
+    assert payload["real_lock_text"] == "locked-v1\n"
 
     clear_real_install(runtime_dir)
     assert not marker.exists()

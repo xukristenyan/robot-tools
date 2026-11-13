@@ -1,0 +1,3 @@
+num_groups: 512
+group_size: 64
+multimask_output: true

@@ -23,6 +23,9 @@
 
 | Service | Client | Public actions | Default port | Runtime guide |
 |---|---|---|---:|---|
+| Point-SAM | `PointSAMClient` | `encode_cloud`, `segment`, `release_cloud` | 5563 | [Point-SAM](runtimes/pointsam/README.md) |
+| cuRobo V2 | `CuroboClient` | `get_robot_info`, `put_mesh`, `put_scene`, `solve_ik`, `check_trajectory`, `plan_motion` | 5562 | [cuRobo](runtimes/curobo/README.md) |
+| Depth Anything V2 Large | `DepthAnythingV2Client` | `estimate_depth` | 5561 | [Depth Anything V2](runtimes/depth_anything_v2/README.md) |
 | Fast FoundationStereo | `FastFSClient` | `reconstruct` | 5556 | [FastFS](runtimes/fastfs/README.md) |
 | GraspGen | `GraspGenClient` | `generate_grasps`, `generate_collision_free_grasps` | 5557 | [GraspGen](runtimes/graspgen/README.md) |
 | SAM 3 | `SAM3Client` | `segment_by_text`, `segment_by_point` | 5558 | [SAM3](runtimes/sam3/README.md) |
@@ -116,11 +119,14 @@ Fake mode returns deterministic, contract-valid data, so this call works before 
 
 First read the selected runtime's prerequisites:
 
+- [Point-SAM prerequisites](runtimes/pointsam/PREREQUISITES.md)
+- [cuRobo prerequisites](runtimes/curobo/PREREQUISITES.md)
 - [FastFS prerequisites](runtimes/fastfs/PREREQUISITES.md)
 - [GraspGen prerequisites](runtimes/graspgen/PREREQUISITES.md)
 - [SAM3 prerequisites](runtimes/sam3/PREREQUISITES.md)
 - [GraspGenX prerequisites](runtimes/graspgenx/PREREQUISITES.md)
 - [AnyPlace prerequisites](runtimes/anyplace/PREREQUISITES.md)
+- [Depth Anything V2 prerequisites](runtimes/depth_anything_v2/PREREQUISITES.md)
 
 Keep only the services needed on this host in `services.yaml`, then run:
 
@@ -159,7 +165,7 @@ uv run robot-tools status endpoints.yaml
 
 Moving a service to another machine changes only the caller's `endpoints.yaml`; it does not change the service contract or the GPU host's launch profile.
 
-See [`examples/`](examples/README.md) for stereo reconstruction, text/click segmentation, grasp generation, native GraspGenX inference, and a stereo-to-grasp pipeline.
+See [`examples/`](examples/README.md) for stereo reconstruction, text/click segmentation, grasp generation, native GraspGenX inference, cuRobo IK/trajectory checking, and a stereo-to-grasp pipeline.
 
 ## Configuration
 

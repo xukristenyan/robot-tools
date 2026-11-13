@@ -5,6 +5,8 @@ multi-service pipeline:
 
 | Script | Flow |
 |---|---|
+| `curobo_motion.py` | Robot-base pose targets → IK/motion planning and sampled trajectory collision checks |
+| `depth_anything_v2_image.py` | Single RGB image → raw relative inverse depth (arbitrary units) |
 | `anyplace_placement.py` | Pick/place mask + RGBD + camera calibration → native relative placement transforms |
 | `fastfs_stereo.py` | Stereo images → disparity → metric depth |
 | `sam3_segment.py` | Image + text or click → masks |
@@ -42,6 +44,13 @@ commands provide it as a temporary uv dependency.
 ## Run
 
 ```bash
+# cuRobo; six illustrative stages in one request. No robot execution.
+uv run python examples/curobo_motion.py --six-stage
+
+# Depth Anything V2 Large; saves raw float32 values, not metric depth.
+uv run --with pillow python examples/depth_anything_v2_image.py \
+  --image data/scene.png --out relative_inverse_depth.npy
+
 # AnyPlace; each NPZ contains rgb, depth in metres, mask, intrinsics,
 # and optionally camera_pose (camera-to-common-frame).
 uv run python examples/anyplace_placement.py \
@@ -100,3 +109,19 @@ client method arguments.
   stereo baseline is in meters.
 - Grasp poses are `(K, 4, 4)` transforms in the coordinate frame documented
   by the selected service.
+
+## Point-SAM colored point cloud
+
+Save `xyz` (N,3 float metres), `rgb` (N,3 uint8 RGB), `prompt_points` (Q,3,
+same coordinate frame) and `prompt_labels` (Q, 1 foreground / 0 background)
+in an NPZ. Optional `prompt_mask` is a previous (N,) logits row.
+
+```bash
+uv run --no-sync python examples/pointsam_segment.py input.npz \
+  --endpoints examples/endpoints.yaml --config examples/configs/pointsam.yaml \
+  --output outputs/pointsam/masks.npz
+```
+
+The example encodes once, segments and releases the cache in `finally`.
+Output masks and logits retain the input point order. See the
+[Point-SAM runtime](../runtimes/pointsam/README.md) for iterative refinement.

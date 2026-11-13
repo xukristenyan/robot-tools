@@ -6,11 +6,14 @@ tools, model artifacts, credentials, storage environment, and post-install
 verification. The service-specific requirements are documented next to each
 runtime:
 
+- [`pointsam/PREREQUISITES.md`](pointsam/PREREQUISITES.md)
+- [`curobo/PREREQUISITES.md`](curobo/PREREQUISITES.md)
 - [`sam3/PREREQUISITES.md`](sam3/PREREQUISITES.md)
 - [`fastfs/PREREQUISITES.md`](fastfs/PREREQUISITES.md)
 - [`graspgen/PREREQUISITES.md`](graspgen/PREREQUISITES.md)
 - [`graspgenx/PREREQUISITES.md`](graspgenx/PREREQUISITES.md)
 - [`anyplace/PREREQUISITES.md`](anyplace/PREREQUISITES.md)
+- [`depth_anything_v2/PREREQUISITES.md`](depth_anything_v2/PREREQUISITES.md)
 
 ## Verified jarjar baseline
 
@@ -61,7 +64,7 @@ On machines with a large `/data` filesystem:
 
 ```bash
 export ROBOT_TOOLS_MODELS_ROOT="/data/${USER}/robot-tools-models"
-mkdir -p "$ROBOT_TOOLS_MODELS_ROOT"/{sam3,fastfs,graspgen,graspgenx,anyplace}
+mkdir -p "$ROBOT_TOOLS_MODELS_ROOT"/{sam3,fastfs,graspgen,graspgenx,anyplace,depth_anything_v2,curobo,pointsam}
 ```
 
 `ROBOT_TOOLS_MODELS_ROOT` is a documentation convention, not a variable read

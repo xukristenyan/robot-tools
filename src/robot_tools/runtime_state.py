@@ -27,9 +27,9 @@ def record_real_install(runtime_dir: str | Path) -> Path:
         raise FileNotFoundError(f"runtime venv does not exist: {marker.parent}")
 
     payload = {
-        "version": 1,
+        "version": 2,
         "service_id": runtime_dir.name,
-        "real_lock_sha256": real_lock_digest(runtime_dir),
+        "real_lock_text": (runtime_dir / "real" / "uv.lock").read_text(),
     }
     temporary = marker.with_name(f"{marker.name}.tmp")
     temporary.write_text(json.dumps(payload, sort_keys=True) + "\n")
@@ -53,10 +53,19 @@ def validate_real_install(runtime_dir: str | Path) -> str | None:
         payload = json.loads(marker.read_text())
     except (OSError, ValueError):
         return "real environment marker is invalid (rerun install)"
-    if not isinstance(payload, dict) or payload.get("version") != 1:
+    if not isinstance(payload, dict) or payload.get("version") not in (1, 2):
         return "real environment marker is invalid (rerun install)"
     if payload.get("service_id") != runtime_dir.name:
         return "real environment marker belongs to another service (rerun install)"
+
+    if payload["version"] == 2:
+        try:
+            lock_text = (runtime_dir / "real" / "uv.lock").read_text()
+        except OSError:
+            return "real/uv.lock is missing"
+        if payload.get("real_lock_text") != lock_text:
+            return "real environment does not match real/uv.lock (rerun install)"
+        return None
 
     try:
         expected_digest = real_lock_digest(runtime_dir)

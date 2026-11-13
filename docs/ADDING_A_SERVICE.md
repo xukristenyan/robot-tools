@@ -170,7 +170,9 @@ class FooServer(BaseServer):
 | Runtime `README.md` | Document public actions, startup options, model locations, and real acceptance checks |
 
 The launcher initializes the selected upstream submodule before
-`install.sh`. Do not initialize other services or download checkpoints as an
+`install.sh`. For sources that must live on an external model disk, set
+`upstream_submodule=False` in the runtime spec and let `install.sh` fetch and
+verify only that service's pinned source (see Point-SAM). Do not initialize other services or download checkpoints as an
 import side effect.
 
 ## 6. Register and expose the service

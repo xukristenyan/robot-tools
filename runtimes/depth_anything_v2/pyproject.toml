@@ -1,0 +1,13 @@
+[project]
+name = "robot-tools-depth-anything-v2-runtime"
+version = "0.1.0"
+description = "Depth Anything V2 Large single-image relative-depth service."
+requires-python = ">=3.12,<3.13"
+dependencies = ["robot-tools[server]"]
+
+[tool.uv.sources]
+robot-tools = { path = "../..", editable = true }
+
+[tool.uv]
+package = false
+python-preference = "only-managed"

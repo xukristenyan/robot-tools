@@ -19,6 +19,22 @@
 # dependencies, or weights. Drop --fake after install + download.
 
 services:
+  - name: pointsam
+    port: 5563
+    # Real: [] uses POINTSAM_DATA_DIR/weights/model.safetensors.
+    extra_args: ["--fake"]
+
+  - name: curobo
+    port: 5562
+    # Real: ["--robot-config", "franka.yml", "--collision-margin", "0.01"]
+    extra_args: ["--fake"]
+
+  - name: depth_anything_v2
+    port: 5561
+    # Real: [] uses Large (vitl), input size 518, and DEPTH_ANYTHING_V2_WEIGHTS_DIR.
+    # Or: ["--checkpoint", "/absolute/path/depth_anything_v2_vitl.pth", "--input-size", "518"]
+    extra_args: ["--fake"]
+
   - name: anyplace
     port: 5560
     # Real: [] uses ANYPLACE_WEIGHTS_DIR/anyplace_multitask/model.pth

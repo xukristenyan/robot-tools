@@ -1,0 +1,28 @@
+[project]
+name = "robot-tools-depth-anything-v2-real-runtime"
+version = "0.1.0"
+description = "Locked headless Depth Anything V2 Large inference environment."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "opencv-python-headless",
+    "robot-tools[server]",
+    "torch==2.10.0",
+    "torchvision==0.25.0",
+]
+
+[tool.uv.sources]
+robot-tools = { path = "../../..", editable = true }
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv]
+required-version = ">=0.11.21"
+package = false
+python-preference = "only-managed"
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

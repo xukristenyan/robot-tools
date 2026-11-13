@@ -22,14 +22,17 @@ jobs:
       - run: uv run --python ${{ matrix.python-version }} ruff format --check src tests
       - run: uv lock --check
       - run: |
-          for service in sam3 fastfs graspgen graspgenx anyplace; do
+          for service in sam3 fastfs graspgen graspgenx anyplace depth_anything_v2 curobo pointsam; do
             uv lock --check --project "runtimes/${service}"
           done
       # The real lock intentionally points at an uninitialized SAM3 submodule.
       # Fake CI verifies that it exists; selected real hosts validate freshness
       # after `install` initializes only this upstream.
       - run: uv lock --check-exists --project runtimes/sam3/real
+      - run: uv lock --check-exists --project runtimes/curobo/real
+      - run: uv lock --check-exists --project runtimes/pointsam/real
       - run: uv lock --check --project runtimes/anyplace/real
+      - run: uv lock --check --project runtimes/depth_anything_v2/real
 
   client-only:
     runs-on: ubuntu-latest
@@ -42,9 +45,18 @@ jobs:
           import importlib.util
           import robot_tools
           from robot_tools.services.sam3 import SAM3Client
+          from robot_tools.services.pointsam import PointSAMClient
+          from robot_tools.services.curobo import CuroboClient
+          from robot_tools.services.depth_anything_v2 import DepthAnythingV2Client
 
           assert importlib.util.find_spec("httpx") is not None
           assert importlib.util.find_spec("fastapi") is None
           assert importlib.util.find_spec("uvicorn") is None
+          assert importlib.util.find_spec("torch") is None
+          assert PointSAMClient.REQUIRED_ACTIONS == frozenset({"encode_cloud", "segment", "release_cloud"})
+          assert importlib.util.find_spec("curobo") is None
+          assert "plan_motion" in CuroboClient.REQUIRED_ACTIONS
+          assert importlib.util.find_spec("cv2") is None
+          assert DepthAnythingV2Client.REQUIRED_ACTIONS == frozenset({"estimate_depth"})
           print(robot_tools.__version__, SAM3Client.__name__)
           PY

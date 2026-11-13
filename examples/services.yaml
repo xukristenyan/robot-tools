@@ -4,6 +4,20 @@
 # this file. Drop the --fake flags once install + download are done.
 
 services:
+  - name: pointsam
+    port: 5563
+    # Real: [] uses POINTSAM_DATA_DIR/weights/model.safetensors.
+    extra_args: ["--fake"]
+
+  - name: curobo
+    port: 5562
+    extra_args: ["--fake"]
+
+  - name: depth_anything_v2
+    port: 5561
+    # Remove --fake for official Large single-image relative inverse depth.
+    extra_args: ["--fake"]
+
   - name: anyplace
     port: 5560
     extra_args: ["--fake"]

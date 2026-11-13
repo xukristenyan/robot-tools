@@ -64,5 +64,9 @@ logs/
 # Local inputs and default outputs used by the example scripts.
 /data/
 /depth.npy
+/relative_inverse_depth.npy
 /sam3_out/
 anyplace_relative.npz
+
+# Point-SAM downloaded source lives on the model disk; installer creates this link.
+/runtimes/pointsam/upstream
